@@ -19,15 +19,15 @@ class Board:
 
     @property
     def height(self) -> int:
-        raise NotImplementedError
+        return len(self.cells)
 
     @property
     def width(self) -> int:
-        raise NotImplementedError
+        return len(self.cells[0])
 
     @property
     def cell_count(self) -> int:
-        raise NotImplementedError
+        return self.width * self.height
 
 
 @dataclass(frozen=True)
