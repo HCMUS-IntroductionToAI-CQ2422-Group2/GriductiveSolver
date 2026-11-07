@@ -47,8 +47,28 @@ class AllOf:
 
 
 Constraint = (
-    CountConstraint
-    | ParityConstraint
-    | ConnectedConstraint
-    | AllOf
+    Fact | CountConstraint | ParityConstraint | ConnectedConstraint | 
+    AllOf | AnyOf | Not
+)
+
+@dataclass(frozen=True)
+class Fact:
+    """Clue that directly determines the status of a cell (e.g., a face-up card)."""
+    target: int
+    is_criminal: bool = True
+
+@dataclass(frozen=True)
+class AnyOf:
+    """Equivalent to logical OR: At least one inner constraint must be satisfied."""
+    constraints: tuple[Constraint, ...]
+
+@dataclass(frozen=True)
+class Not:
+    """Equivalent to logical NOT: The inner constraint must be false."""
+    constraint: Constraint
+
+# Nhớ cập nhật lại dòng cuối cùng này để nó bao trùm hết các type mới
+Constraint = (
+    Fact | CountConstraint | ParityConstraint | ConnectedConstraint | 
+    AllOf | AnyOf | Not
 )
