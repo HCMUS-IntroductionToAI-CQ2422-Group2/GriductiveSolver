@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f2eb">
+  <title>Griductive Solver — Caseboard</title>
+  <link rel="stylesheet" href="static/css/app.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="#" aria-label="Griductive Solver trang chủ">
+        <span class="brand-mark" aria-hidden="true">G<span>↗</span></span>
+        <span class="brand-copy"><strong>GRIDUCTIVE</strong><small>CASE SOLVER</small></span>
+      </a>
+      <div class="case-context"><span class="eyebrow">ACTIVE CASE</span><strong id="case-name">The Riverside Circle</strong></div>
+      <div class="top-actions"><span class="connection-pill"><i></i><span id="connection-label">MOCK MODE</span></span><button class="icon-button" aria-label="Help" title="Help">?</button><span class="user-badge">B</span></div>
+    </header>
+
+    <main class="workspace">
+      <aside class="sidebar">
+        <div class="side-label">CASE FILE</div>
+        <button class="nav-item active"><span class="nav-icon">▦</span> Investigation board <span class="nav-count">01</span></button>
+        <button class="nav-item" id="load-case"><img class="nav-icon" src="static/icons/load.svg" alt=""> Load a case <span class="nav-shortcut">L</span></button>
+        <div class="side-divider"></div>
+        <div class="side-label">YOUR PROGRESS</div>
+        <div class="progress-card">
+          <div class="progress-heading"><span>Public knowledge</span><strong id="progress-label">0 / 9</strong></div>
+          <div class="progress-track"><span id="progress-bar"></span></div>
+          <p>Reveal cards only when a verdict is logically forced.</p>
+        </div>
+        <div class="side-note"><span class="note-icon">✳</span><div><strong>Think it through</strong><p>Every clue is always true. Use them together to prove each verdict.</p></div></div>
+        <div class="sidebar-bottom"><span class="avatar-mini">GS</span><span><strong>Griductive Solver</strong><small>CSC14003 · Project 2</small></span><button class="more-button" aria-label="More options">···</button></div>
+      </aside>
+
+      <section class="main-panel">
+        <div class="page-heading">
+          <div><div class="breadcrumb">CASES <span>/</span> <b>INVESTIGATION BOARD</b></div><h1>Who’s involved?</h1><p>Study the clues. Make a verdict only when the evidence forces it.</p></div>
+          <div class="heading-actions"><button class="button button-light" id="restart-btn"><img src="static/icons/restart.svg" alt=""> Restart</button><button class="button button-dark" id="hint-btn"><img src="static/icons/hint.svg" alt=""> Get a hint</button></div>
+        </div>
+
+        <div class="board-toolbar">
+          <div class="board-name"><span class="board-symbol">▤</span><div><strong>Character board</strong><small><span id="board-size">3 × 3</span> grid <i>·</i> <span id="known-count">0 revealed</span></small></div></div>
+          <div class="board-tools"><button class="tool-button" id="inspect-toggle" title="Inspect clue"><img src="static/icons/inspect.svg" alt=""><span>Inspect clue</span></button><span class="toolbar-separator"></span><button class="tool-button" id="autosolve-btn"><img src="static/icons/auto-solve.svg" alt=""><span>Auto solve</span></button><button class="square-button" title="Board options">···</button></div>
+        </div>
+
+        <div class="board-wrap"><div class="board" id="board" aria-label="Character grid"></div></div>
+        <div class="board-caption"><span><i class="legend-dot face-down"></i> Unrevealed</span><span><i class="legend-dot face-up"></i> Public knowledge</span><span class="caption-hint">Select a revealed card to inspect its clue</span></div>
+
+        <section class="verdict-panel" aria-label="Submit a verdict">
+          <div class="verdict-copy"><span class="verdict-icon">⌖</span><div><strong>Ready to make a call?</strong><p>Select an unrevealed character, then submit your verdict.</p></div></div>
+          <div class="verdict-controls"><span class="selected-character" id="selected-label">No character selected</span><button class="verdict-button innocent" data-status="INNOCENT" disabled>Innocent</button><button class="verdict-button criminal" data-status="CRIMINAL" disabled>Criminal</button></div>
+        </section>
+        <div class="toast" id="toast" role="status" aria-live="polite"></div>
+      </section>
+
+      <aside class="inspector" id="inspector">
+        <div class="inspector-head"><div><span class="eyebrow">CASE NOTES</span><h2>Clue inspector</h2></div><button class="close-inspector" id="close-inspector" aria-label="Close clue inspector">×</button></div>
+        <div class="inspector-content" id="inspector-content"><div class="empty-state"><span class="empty-icon">⌕</span><strong>Nothing under the lens</strong><p>Select a revealed card to read its clue and highlight the cells it refers to.</p></div></div>
+        <div class="inspector-footer"><span class="privacy-mark">◈</span><p>Only public clues and proven statuses appear here.</p></div>
+      </aside>
+    </main>
+    <footer class="app-footer"><span>GRIDUCTIVE SOLVER <i>·</i> INVESTIGATION WORKSPACE</span><span><i class="footer-dot"></i> <span id="footer-mode">Connected to local mock data</span></span></footer>
+  </div>
+  <div class="modal-backdrop" id="modal-backdrop" hidden><section class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><button class="modal-close" id="modal-close" aria-label="Close">×</button><span class="modal-mark">✧</span><h2 id="modal-title">A small nudge</h2><p id="modal-copy"></p><button class="button button-dark" id="modal-ok">Got it</button></section></div>
+  <script type="module" src="static/js/app.js"></script>
+</body>
+</html>
