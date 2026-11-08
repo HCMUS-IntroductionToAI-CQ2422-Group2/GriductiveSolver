@@ -60,21 +60,21 @@ Quy ước checklist: `[ ]` chưa làm, mỗi task nên commit riêng để dễ
 
 ## Nhóm 4 — `validation.py`
 
-- [ ] **4.1** Định nghĩa `class PuzzleValidationError(Exception)` (theo quyết định 0.3) trong cùng file hoặc file riêng.
-- [ ] **4.2** Kiểm tra cấu trúc:
-  - [ ] 4.2.1 Tất cả `Cell.id` trong board là duy nhất.
-  - [ ] 4.2.2 Mọi `cell_id` xuất hiện trong `clues[*].source_cell_id`, `solution[*].cell_id`, `initial_verdicts[*].cell_id`, và trong các `targets` của constraint đều tồn tại trong board.
-  - [ ] 4.2.3 `solution` có đúng một `Verdict` cho mỗi `Cell` (không thiếu, không trùng).
-- [ ] **4.3** Kiểm tra đáp án duy nhất:
-  - [ ] 4.3.1 Build `PublicState` giả với **toàn bộ** `clues` đã mở (không chỉ clue công khai) và `proved_statuses` rỗng.
-  - [ ] 4.3.2 Đếm số tổ hợp assignment đầy đủ thỏa hết constraint (dùng lại cơ chế enumerate ở 2.3.2, hoặc gọi `checker.has_solution` lặp lại với từng giả định để đếm). Nếu > 1 → raise lỗi "đáp án không duy nhất".
-  - [ ] 4.3.3 Assignment duy nhất đó phải khớp với `puzzle.solution`, nếu không → raise lỗi "solution khai báo sai".
-- [ ] **4.4** Kiểm tra giải được không cần đoán — mô phỏng ván chơi "hoàn hảo":
-  - [ ] 4.4.1 Khởi tạo state giả giống `initial_verdicts`, clue công khai ban đầu.
-  - [ ] 4.4.2 Lặp: với mỗi ô chưa `proved`, thử xem `checker.has_solution(state, Verdict(id, not solution[id]))` có `False` không (tức suy ra được từ thông tin **hiện có**, dùng đúng giá trị trong `solution` để mô phỏng người chơi chơi đúng).
-  - [ ] 4.4.3 Nếu tìm được ≥1 ô suy ra được → cập nhật state, mở clue liên quan, lặp lại.
-  - [ ] 4.4.4 Nếu một vòng không tìm được ô nào mà `is_complete` vẫn `False` → raise lỗi "đề yêu cầu đoán mò, không giải được tuần tự".
-- [ ] **4.5** Viết test với ≥2 đề mẫu: 1 đề hợp lệ (phải pass), 1 đề cố ý lỗi (ví dụ 2 đáp án đều thỏa) để chắc `validate_puzzle` raise đúng lỗi.
+- [x] **4.1** Định nghĩa `class PuzzleValidationError(Exception)` (theo quyết định 0.3) trong cùng file hoặc file riêng.
+- [x] **4.2** Kiểm tra cấu trúc:
+  - [x] 4.2.1 Tất cả `Cell.id` trong board là duy nhất.
+  - [x] 4.2.2 Mọi `cell_id` xuất hiện trong `clues[*].source_cell_id`, `solution[*].cell_id`, `initial_verdicts[*].cell_id`, và trong các `targets` của constraint đều tồn tại trong board.
+  - [x] 4.2.3 `solution` có đúng một `Verdict` cho mỗi `Cell` (không thiếu, không trùng).
+- [x] **4.3** Kiểm tra đáp án duy nhất:
+  - [x] 4.3.1 Build `PublicState` giả với **toàn bộ** `clues` đã mở (không chỉ clue công khai) và `proved_statuses` rỗng.
+  - [x] 4.3.2 Đếm số tổ hợp assignment đầy đủ thỏa hết constraint (dùng lại cơ chế enumerate ở 2.3.2, hoặc gọi `checker.has_solution` lặp lại với từng giả định để đếm). Nếu > 1 → raise lỗi "đáp án không duy nhất".
+  - [x] 4.3.3 Assignment duy nhất đó phải khớp với `puzzle.solution`, nếu không → raise lỗi "solution khai báo sai".
+- [x] **4.4** Kiểm tra giải được không cần đoán — mô phỏng ván chơi "hoàn hảo":
+  - [x] 4.4.1 Khởi tạo state giả giống `initial_verdicts`, clue công khai ban đầu.
+  - [x] 4.4.2 Lặp: với mỗi ô chưa `proved`, thử xem `checker.has_solution(state, Verdict(id, not solution[id]))` có `False` không (tức suy ra được từ thông tin **hiện có**, dùng đúng giá trị trong `solution` để mô phỏng người chơi chơi đúng).
+  - [x] 4.4.3 Nếu tìm được ≥1 ô suy ra được → cập nhật state, mở clue liên quan, lặp lại.
+  - [x] 4.4.4 Nếu một vòng không tìm được ô nào mà `is_complete` vẫn `False` → raise lỗi "đề yêu cầu đoán mò, không giải được tuần tự".
+- [x] **4.5** Viết test với ≥2 đề mẫu: 1 đề hợp lệ (phải pass), 1 đề cố ý lỗi (ví dụ 2 đáp án đều thỏa) để chắc `validate_puzzle` raise đúng lỗi.
 
 ## Nhóm 5 — Kiểm thử tích hợp (sau khi nhóm 1–4 xong)
 
