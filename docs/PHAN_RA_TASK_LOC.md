@@ -78,9 +78,9 @@ Quy ước checklist: `[ ]` chưa làm, mỗi task nên commit riêng để dễ
 
 ## Nhóm 5 — Kiểm thử tích hợp (sau khi nhóm 1–4 xong)
 
-- [ ] **5.1** Dựng 1 `PuzzleDefinition` mẫu nhỏ (3×3, 2–3 clue) thủ công trong file test, không phụ thuộc đề thật của game.
-- [ ] **5.2** Test full flow: `validate_puzzle` pass → `GameEngine(puzzle, checker)` → submit đủ các ô theo đúng thứ tự suy luận được → `get_public_state().is_complete == True`.
-- [ ] **5.3** Test `restart()` giữa ván: submit vài lượt, restart, kiểm tra state về lại như `initial_verdicts`.
+- [x] **5.1** Dựng 1 `PuzzleDefinition` mẫu nhỏ (3×3, 2–3 clue) thủ công trong file test, không phụ thuộc đề thật của game.
+- [x] **5.2** Test full flow: `validate_puzzle` pass → `GameEngine(puzzle, checker)` → submit đủ các ô theo đúng thứ tự suy luận được → `get_public_state().is_complete == True`.
+- [x] **5.3** Test `restart()` giữa ván: submit vài lượt, restart, kiểm tra state về lại như `initial_verdicts`.
 
 ## Thứ tự khuyến nghị khi làm
 
@@ -92,3 +92,13 @@ Quy ước checklist: `[ ]` chưa làm, mỗi task nên commit riêng để dễ
 6. Nhóm 5 (test tích hợp) — xác nhận toàn bộ ăn khớp.
 
 Mỗi task đánh dấu `[x]` sau khi code + test tương ứng pass, để dễ theo dõi tiến độ tới hạn **trưa 8/11**.
+
+## Kết quả và điểm cần báo nhóm
+
+Đã xong toàn bộ nhóm 0–5. Chạy `python -m pytest` từ gốc repo: 48 test pass.
+
+- **Hải (API):** dùng `GameEngine(puzzle, BruteForceChecker())`, rồi gọi `get_public_state()` / `submit_verdict()` / `restart()`. `validate_puzzle` raise `PuzzleValidationError` khi đề lỗi. `PublicState.proved_statuses` là mapping chỉ đọc (`MappingProxyType`), cần `dict(...)` trước khi serialize JSON.
+- **Minh:** `PublicState.is_complete` đang tự đếm ô từ `board.cells`. Khi `Board.cell_count` được cài thì đổi sang dùng nó (có `TODO` trong `GameState.py`).
+- **Minh Phan:** `BruteForceChecker.evaluate_constraint` và `validation._constraint_targets` đọc trực tiếp các dataclass trong `constraints.py`. Đổi cấu trúc constraint thì phải sửa 2 hàm này.
+- **Cách hiểu luật cần nhóm xác nhận:** `ConnectedConstraint` chỉ tính kề 4 hướng (không tính chéo); clue của ô trong `initial_verdicts` được mở ngay từ đầu.
+
