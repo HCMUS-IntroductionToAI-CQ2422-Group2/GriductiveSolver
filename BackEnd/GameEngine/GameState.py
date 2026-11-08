@@ -9,6 +9,10 @@ from BackEnd.GameEngine.GameObject.objects import Board, Clue
 @dataclass
 class GameState:
     proved_statuses: dict[int, bool] = field(default_factory=dict)
+    # Ids of clues unlocked during play (clues with a source cell).
+    # Public starting clues (source_cell_id is None) are always visible
+    # and are not stored here.
+    revealed_clue_ids: set[int] = field(default_factory=set)
 
 
 @dataclass(frozen=True)
@@ -20,4 +24,6 @@ class PublicState:
 
     @property
     def is_complete(self) -> bool:
-        raise NotImplementedError
+        # TODO: switch to `self.board.cell_count` once Board implements it.
+        cell_count = sum(len(row) for row in self.board.cells)
+        return len(self.proved_statuses) == cell_count
