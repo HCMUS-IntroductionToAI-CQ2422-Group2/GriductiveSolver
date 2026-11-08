@@ -24,39 +24,39 @@ Quy ước checklist: `[ ]` chưa làm, mỗi task nên commit riêng để dễ
 
 ## Nhóm 2 — `ConstraintChecker.py`
 
-- [ ] **2.1** Xác nhận `Protocol` hiện tại đủ dùng (không cần sửa file này) — chỉ cần implement một class tuân theo nó ở nơi khác (ví dụ file mới `BackEnd/GameEngine/SimpleChecker.py`, hoặc trong thư mục test).
-- [ ] **2.2** (nếu theo khuyến nghị 0.2) Viết `evaluate_constraint(constraint, assignment: dict[int, bool]) -> bool | None` — trả `None` nếu assignment chưa đủ dữ liệu để quyết định, `True/False` nếu đủ:
-  - [ ] 2.2.1 Case `CountConstraint`: đếm số `cell_id` trong `targets` có `assignment[id] == is_criminal`, so sánh theo `comparison`.
-  - [ ] 2.2.2 Case `ParityConstraint`: đếm rồi kiểm tra chẵn/lẻ.
-  - [ ] 2.2.3 Case `ConnectedConstraint`: lọc các ô thỏa `is_criminal`, kiểm tra liên thông bằng BFS/DFS qua 4 hướng orthogonal.
-  - [ ] 2.2.4 Case `AllOf`: tất cả constraint con đều `True`.
-- [ ] **2.3** Viết `has_solution(public_state, assumption=None)`:
-  - [ ] 2.3.1 Ghép `proved_statuses` hiện tại + `assumption` (nếu có) thành partial assignment.
-  - [ ] 2.3.2 Liệt kê các ô chưa có verdict, thử toàn bộ `2^n` tổ hợp còn lại (board nhỏ nên chấp nhận brute-force).
-  - [ ] 2.3.3 Với mỗi tổ hợp đầy đủ, kiểm tra **mọi** clue đang có trong `public_state.revealed_clues` đều thỏa (dùng 2.2) — chỉ cần ≥1 tổ hợp thỏa hết thì trả `True`.
-- [ ] **2.4** Viết test riêng cho `has_solution` với 1 puzzle nhỏ dựng tay (3–4 ô), không phụ thuộc `GameEngine`.
+- [x] **2.1** Xác nhận `Protocol` hiện tại đủ dùng (không cần sửa file này) — chỉ cần implement một class tuân theo nó ở nơi khác (ví dụ file mới `BackEnd/GameEngine/SimpleChecker.py`, hoặc trong thư mục test).
+- [x] **2.2** (nếu theo khuyến nghị 0.2) Viết `evaluate_constraint(constraint, assignment: dict[int, bool]) -> bool | None` — trả `None` nếu assignment chưa đủ dữ liệu để quyết định, `True/False` nếu đủ:
+  - [x] 2.2.1 Case `CountConstraint`: đếm số `cell_id` trong `targets` có `assignment[id] == is_criminal`, so sánh theo `comparison`.
+  - [x] 2.2.2 Case `ParityConstraint`: đếm rồi kiểm tra chẵn/lẻ.
+  - [x] 2.2.3 Case `ConnectedConstraint`: lọc các ô thỏa `is_criminal`, kiểm tra liên thông bằng BFS/DFS qua 4 hướng orthogonal.
+  - [x] 2.2.4 Case `AllOf`: tất cả constraint con đều `True`.
+- [x] **2.3** Viết `has_solution(public_state, assumption=None)`:
+  - [x] 2.3.1 Ghép `proved_statuses` hiện tại + `assumption` (nếu có) thành partial assignment.
+  - [x] 2.3.2 Liệt kê các ô chưa có verdict, thử toàn bộ `2^n` tổ hợp còn lại (board nhỏ nên chấp nhận brute-force).
+  - [x] 2.3.3 Với mỗi tổ hợp đầy đủ, kiểm tra **mọi** clue đang có trong `public_state.revealed_clues` đều thỏa (dùng 2.2) — chỉ cần ≥1 tổ hợp thỏa hết thì trả `True`.
+- [x] **2.4** Viết test riêng cho `has_solution` với 1 puzzle nhỏ dựng tay (3–4 ô), không phụ thuộc `GameEngine`.
 
 ## Nhóm 3 — `GameEngine.py`
 
-- [ ] **3.1** `__init__`: lưu `_puzzle`, `_checker`; tạo `_state = GameState(proved_statuses={v.cell_id: v.is_criminal for v in puzzle.initial_verdicts})`.
-- [ ] **3.2** Viết helper nội bộ `_cell_exists(cell_id) -> bool` (quét `puzzle.board.cells`).
-- [ ] **3.3** `get_public_state()`:
-  - [ ] 3.3.1 Lọc `puzzle.clues` theo `clue.id in _state.revealed_clue_ids` hoặc `clue.source_cell_id is None` (clue công khai từ đầu) → `revealed_clues`.
-  - [ ] 3.3.2 Dựng `PublicState(puzzle_id=puzzle.id, board=puzzle.board, revealed_clues=..., proved_statuses=dict(_state.proved_statuses))` — dùng `dict(...)` để trả **bản sao**, không trả tham chiếu trực tiếp vào state nội bộ.
-- [ ] **3.4** `submit_verdict` — bước kiểm tra đầu vào:
-  - [ ] 3.4.1 `cell_id` không tồn tại trên board → trả `SubmitResult(..., outcome=INVALID_CELL, ...)`.
-  - [ ] 3.4.2 `cell_id` đã có trong `proved_statuses` → `ALREADY_PROVED`.
-- [ ] **3.5** `submit_verdict` — phần suy luận logic (sau khi qua bước 3.4):
-  - [ ] 3.5.1 Lấy `public_state = get_public_state()` hiện tại.
-  - [ ] 3.5.2 Gọi `checker.has_solution(public_state, Verdict(cell_id, not status))` → nếu `False` thì verdict `status` bắt buộc đúng.
-  - [ ] 3.5.3 Nếu không bắt buộc đúng, gọi tiếp `checker.has_solution(public_state, Verdict(cell_id, status))` để phân biệt `NOT_PROVABLE` (còn nghiệm) và `CONTRADICTED` (không còn nghiệm nào thỏa `status`).
-- [ ] **3.6** `submit_verdict` — áp dụng kết quả khi `ACCEPTED`:
-  - [ ] 3.6.1 Cập nhật `_state.proved_statuses[cell_id] = status`.
-  - [ ] 3.6.2 Mở clue: thêm vào `_state.revealed_clue_ids` mọi `clue.id` có `clue.source_cell_id == cell_id`.
-  - [ ] 3.6.3 Trả `SubmitResult(verdict=Verdict(cell_id, status), outcome=ACCEPTED, public_state=get_public_state())` (state mới, sau khi mở clue).
-- [ ] **3.7** `submit_verdict` — các nhánh còn lại (`NOT_PROVABLE`, `CONTRADICTED`, `INVALID_CELL`, `ALREADY_PROVED`): trả `public_state` **không đổi** (không có side effect).
-- [ ] **3.8** `restart()`: tạo lại `_state` như trong `__init__`, trả `get_public_state()`.
-- [ ] **3.9** Viết test riêng cho từng outcome của `submit_verdict` (5 test case ứng với 5 giá trị `SubmitOutcome`), và 1 test cho `restart()` sau khi đã submit vài lượt.
+- [x] **3.1** `__init__`: lưu `_puzzle`, `_checker`; tạo `_state = GameState(proved_statuses={v.cell_id: v.is_criminal for v in puzzle.initial_verdicts})`.
+- [x] **3.2** Viết helper nội bộ `_cell_exists(cell_id) -> bool` (quét `puzzle.board.cells`).
+- [x] **3.3** `get_public_state()`:
+  - [x] 3.3.1 Lọc `puzzle.clues` theo `clue.id in _state.revealed_clue_ids` hoặc `clue.source_cell_id is None` (clue công khai từ đầu) → `revealed_clues`.
+  - [x] 3.3.2 Dựng `PublicState(puzzle_id=puzzle.id, board=puzzle.board, revealed_clues=..., proved_statuses=dict(_state.proved_statuses))` — dùng `dict(...)` để trả **bản sao**, không trả tham chiếu trực tiếp vào state nội bộ.
+- [x] **3.4** `submit_verdict` — bước kiểm tra đầu vào:
+  - [x] 3.4.1 `cell_id` không tồn tại trên board → trả `SubmitResult(..., outcome=INVALID_CELL, ...)`.
+  - [x] 3.4.2 `cell_id` đã có trong `proved_statuses` → `ALREADY_PROVED`.
+- [x] **3.5** `submit_verdict` — phần suy luận logic (sau khi qua bước 3.4):
+  - [x] 3.5.1 Lấy `public_state = get_public_state()` hiện tại.
+  - [x] 3.5.2 Gọi `checker.has_solution(public_state, Verdict(cell_id, not status))` → nếu `False` thì verdict `status` bắt buộc đúng.
+  - [x] 3.5.3 Nếu không bắt buộc đúng, gọi tiếp `checker.has_solution(public_state, Verdict(cell_id, status))` để phân biệt `NOT_PROVABLE` (còn nghiệm) và `CONTRADICTED` (không còn nghiệm nào thỏa `status`).
+- [x] **3.6** `submit_verdict` — áp dụng kết quả khi `ACCEPTED`:
+  - [x] 3.6.1 Cập nhật `_state.proved_statuses[cell_id] = status`.
+  - [x] 3.6.2 Mở clue: thêm vào `_state.revealed_clue_ids` mọi `clue.id` có `clue.source_cell_id == cell_id`.
+  - [x] 3.6.3 Trả `SubmitResult(verdict=Verdict(cell_id, status), outcome=ACCEPTED, public_state=get_public_state())` (state mới, sau khi mở clue).
+- [x] **3.7** `submit_verdict` — các nhánh còn lại (`NOT_PROVABLE`, `CONTRADICTED`, `INVALID_CELL`, `ALREADY_PROVED`): trả `public_state` **không đổi** (không có side effect).
+- [x] **3.8** `restart()`: tạo lại `_state` như trong `__init__`, trả `get_public_state()`.
+- [x] **3.9** Viết test riêng cho từng outcome của `submit_verdict` (5 test case ứng với 5 giá trị `SubmitOutcome`), và 1 test cho `restart()` sau khi đã submit vài lượt.
 
 ## Nhóm 4 — `validation.py`
 
