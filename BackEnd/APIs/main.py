@@ -19,13 +19,14 @@ from BackEnd.GameEngine.ConstraintChecker import ConstraintChecker
 from BackEnd.GameEngine.GameEngine import GameEngine, SubmitOutcome
 from BackEnd.GameEngine.GameObject.objects import Verdict
 from BackEnd.GameEngine.GameState import PublicState
+from BackEnd.GameEngine.BruteForceChecker import BruteForceChecker
 
 app = FastAPI(title="Griductive API")
 
 demo_puzzle = make_demo_puzzle()
 puzzles = {demo_puzzle.id: demo_puzzle}
-checker: ConstraintChecker = DemoConstraintChecker()
-engine_type: type[GameEngine] = DemoGameEngine
+checker: ConstraintChecker = BruteForceChecker()
+engine_type: type[GameEngine] = GameEngine
 app.state.engine = engine_type(demo_puzzle, checker)
 game_lock = Lock()
 
