@@ -3,14 +3,7 @@ from typing import Literal
 from pydantic import BaseModel, StrictBool, StrictInt
 
 from BackEnd.GameEngine.GameEngine import SubmitOutcome
-from BackEnd.GameEngine.GameObject.constraints import (
-    AllOf,
-    ConnectedConstraint,
-    Constraint,
-    Count,
-    CountConstraint,
-    ParityConstraint,
-)
+from BackEnd.GameEngine.GameObject.constraints import referenced_cell_ids
 from BackEnd.GameEngine.GameObject.objects import Verdict
 from BackEnd.GameEngine.GameState import PublicState
 
@@ -77,29 +70,6 @@ class AutoSolveResponse(BaseModel):
     status: Literal["SOLVED", "STUCK", "INCONSISTENT"]
     state: PublicStateResponse
     trace: list[DeductionStep]
-
-
-def referenced_cell_ids(constraint: Constraint) -> set[int]:
-    if isinstance(constraint, CountConstraint):
-        targets = set(constraint.left.targets)
-        if isinstance(constraint.right, Count):
-            targets.update(constraint.right.targets)
-        return targets
-
-    if isinstance(constraint, ParityConstraint):
-        return set(constraint.count.targets)
-
-    if isinstance(constraint, ConnectedConstraint):
-        return set(constraint.targets)
-
-    if isinstance(constraint, AllOf):
-        return {
-            cell_id
-            for part in constraint.constraints
-            for cell_id in referenced_cell_ids(part)
-        }
-
-    raise TypeError(f"Unsupported constraint: {type(constraint).__name__}")
 
 
 def to_public_json(state: PublicState) -> dict[str, object]:

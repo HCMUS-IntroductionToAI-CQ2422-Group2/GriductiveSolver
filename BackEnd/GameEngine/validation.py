@@ -1,18 +1,10 @@
 from __future__ import annotations
 
 from collections import Counter
-from typing import Iterator
 
 from BackEnd.GameEngine.ConstraintChecker import ConstraintChecker
 from BackEnd.GameEngine.GameEngine import GameEngine, SubmitOutcome
-from BackEnd.GameEngine.GameObject.constraints import (
-    AllOf,
-    ConnectedConstraint,
-    Constraint,
-    Count,
-    CountConstraint,
-    ParityConstraint,
-)
+from BackEnd.GameEngine.GameObject.constraints import referenced_cell_ids
 from BackEnd.GameEngine.GameObject.objects import PuzzleDefinition, Verdict
 from BackEnd.GameEngine.GameState import PublicState
 
@@ -42,25 +34,6 @@ def _duplicates(values) -> list:
     return sorted(v for v, n in Counter(values).items() if n > 1)
 
 
-def _constraint_targets(constraint: Constraint) -> Iterator[int]:
-    """Yield every cell id referenced by a constraint (recursively)."""
-    if isinstance(constraint, CountConstraint):
-        yield from constraint.left.targets
-        if isinstance(constraint.right, Count):
-            yield from constraint.right.targets
-    elif isinstance(constraint, ParityConstraint):
-        yield from constraint.count.targets
-    elif isinstance(constraint, ConnectedConstraint):
-        yield from constraint.targets
-    elif isinstance(constraint, AllOf):
-        for child in constraint.constraints:
-            yield from _constraint_targets(child)
-    else:
-        raise PuzzleValidationError(
-            f"Unsupported constraint type: {type(constraint).__name__}"
-        )
-
-
 def _check_structure(puzzle: PuzzleDefinition) -> None:
     all_cell_ids = [cell.id for row in puzzle.board.cells for cell in row]
     if not all_cell_ids:
@@ -79,7 +52,11 @@ def _check_structure(puzzle: PuzzleDefinition) -> None:
             raise PuzzleValidationError(
                 f"Clue {clue.id} has unknown source cell {clue.source_cell_id}"
             )
-        unknown = sorted(set(_constraint_targets(clue.constraint)) - cell_ids)
+        try:
+            targets = referenced_cell_ids(clue.constraint)
+        except TypeError as error:
+            raise PuzzleValidationError(str(error)) from error
+        unknown = sorted(targets - cell_ids)
         if unknown:
             raise PuzzleValidationError(
                 f"Clue {clue.id} references unknown cells {unknown}"
