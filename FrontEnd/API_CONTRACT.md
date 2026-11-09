@@ -39,15 +39,7 @@ Lỗi HTTP có dạng `{ "detail": ... }`; `api.js` ném `ApiError(status, detai
 hoặc đặt `window.GRIDUCTIVE_API_BASE` trước khi load `app.js`.
 
 FastAPI phục vụ frontend tại `/app/` và API tại `/api/` trên cùng origin.
-Chạy từ thư mục gốc dự án:
-
-```powershell
-python -m pip install -r requirement.txt
-python -m uvicorn BackEnd.APIs.main:app --reload
-```
-
-Mở [giao diện chơi](http://127.0.0.1:8000/app/) và kiểm tra nhãn **LIVE API**.
-Tài liệu Swagger ở [đường dẫn /docs](http://127.0.0.1:8000/docs).
+Cài đặt, chạy server, chạy test và các lỗi thường gặp: xem mục **Cách chạy** trong [README.md](../README.md#cách-chạy).
 
 Nếu không gọi được backend, UI tự chuyển sang `mock/state.js` (chế độ "OFFLINE · MOCK", chỉ xem; verdict/hint/auto-solve bị khoá).
 `mock/state.js` dùng cùng shape `PublicStateResponse` và cùng dữ liệu với `make_demo_puzzle()`.
