@@ -24,6 +24,4 @@ class PublicState:
 
     @property
     def is_complete(self) -> bool:
-        # TODO: switch to `self.board.cell_count` once Board implements it.
-        cell_count = sum(len(row) for row in self.board.cells)
-        return len(self.proved_statuses) == cell_count
+        return len(self.proved_statuses) == self.board.cell_count

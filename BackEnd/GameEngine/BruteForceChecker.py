@@ -6,7 +6,7 @@ as soon as any revealed clue is definitely violated.
 
 from __future__ import annotations
 
-from collections import deque
+from collections import Counter, deque
 from typing import Mapping
 
 from BackEnd.GameEngine.GameObject.constraints import (
@@ -16,7 +16,11 @@ from BackEnd.GameEngine.GameObject.constraints import (
     Constraint,
     Count,
     CountConstraint,
+    Different,
+    Fact,
     ParityConstraint,
+    Same,
+    referenced_cell_ids,
 )
 from BackEnd.GameEngine.GameObject.objects import Board, Verdict
 from BackEnd.GameEngine.GameState import PublicState
@@ -98,6 +102,24 @@ def _is_connected(cell_ids: set[int], positions: Positions) -> bool:
     return len(seen) == len(cell_ids)
 
 
+def order_free_cells_by_degree(
+    free_cells: list[int],
+    constraints: list[Constraint],
+) -> list[int]:
+    """Visit cells referenced by the most constraints first.
+
+    `ParityConstraint`/`ConnectedConstraint` only resolve once every one of
+    their targets is assigned, so filling in cells outside any tight
+    constraint first wastes whole branches before a contradiction can even
+    be detected. Degree is computed once per search (the constraint set is
+    fixed for the call), not re-evaluated at every node.
+    """
+    degree = Counter()
+    for constraint in constraints:
+        degree.update(referenced_cell_ids(constraint))
+    return sorted(free_cells, key=lambda cid: degree[cid], reverse=True)
+
+
 def evaluate_constraint(
     constraint: Constraint,
     assignment: Assignment,
@@ -108,6 +130,17 @@ def evaluate_constraint(
     Returns True/False when the result is already determined regardless of
     the unassigned cells, and None when it still depends on them.
     """
+    if isinstance(constraint, Fact):
+        status = assignment.get(constraint.target)
+        return None if status is None else status == constraint.is_criminal
+
+    if isinstance(constraint, (Same, Different)):
+        left = assignment.get(constraint.cell_id_1)
+        right = assignment.get(constraint.cell_id_2)
+        if left is None or right is None:
+            return None
+        return (left == right) if isinstance(constraint, Same) else (left != right)
+
     if isinstance(constraint, CountConstraint):
         left = _count_range(constraint.left, assignment)
         if isinstance(constraint.right, Count):
@@ -164,7 +197,9 @@ class BruteForceChecker:
 
         positions = cell_positions(public_state.board)
         constraints = [clue.constraint for clue in public_state.revealed_clues]
-        free_cells = [cid for cid in positions if cid not in assignment]
+        free_cells = order_free_cells_by_degree(
+            [cid for cid in positions if cid not in assignment], constraints
+        )
         return self._search(assignment, free_cells, 0, constraints, positions)
 
     def _search(

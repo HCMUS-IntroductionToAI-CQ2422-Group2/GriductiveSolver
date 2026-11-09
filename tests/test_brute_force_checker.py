@@ -2,6 +2,7 @@ from BackEnd.GameEngine.BruteForceChecker import (
     BruteForceChecker,
     cell_positions,
     evaluate_constraint,
+    order_free_cells_by_degree,
 )
 from BackEnd.GameEngine.GameObject.constraints import (
     AllOf,
@@ -9,7 +10,11 @@ from BackEnd.GameEngine.GameObject.constraints import (
     ConnectedConstraint,
     Count,
     CountConstraint,
+    Different,
+    Fact,
     ParityConstraint,
+    Same,
+    referenced_cell_ids,
 )
 from BackEnd.GameEngine.GameObject.objects import Verdict
 from tests.helpers import make_board, make_clue, make_public_state
@@ -90,6 +95,37 @@ def test_connected_empty_respects_allow_empty():
     assert ev(ConnectedConstraint(ALL, True, allow_empty=True), none_criminal) is True
 
 
+# ---- Fact -------------------------------------------------------------------
+
+def test_fact_criminal():
+    f = Fact(0, is_criminal=True)
+    assert ev(f, {0: True}) is True
+    assert ev(f, {0: False}) is False
+    assert ev(f, {}) is None
+
+
+def test_fact_innocent():
+    f = Fact(0, is_criminal=False)
+    assert ev(f, {0: False}) is True
+    assert ev(f, {0: True}) is False
+
+
+# ---- Same / Different -------------------------------------------------------
+
+def test_same():
+    s = Same(0, 1)
+    assert ev(s, {0: True, 1: True}) is True
+    assert ev(s, {0: True, 1: False}) is False
+    assert ev(s, {0: True}) is None
+
+
+def test_different():
+    d = Different(0, 1)
+    assert ev(d, {0: True, 1: False}) is True
+    assert ev(d, {0: True, 1: True}) is False
+    assert ev(d, {1: False}) is None
+
+
 # ---- AllOf ----------------------------------------------------------------
 
 def test_all_of():
@@ -100,6 +136,33 @@ def test_all_of():
     assert ev(c, {0: True, 1: False, 2: False, 3: True}) is False
     assert ev(c, {0: False, 1: False, 2: False}) is False  # count fails early
     assert ev(c, {0: True}) is None
+
+
+# ---- degree-ordering heuristic ---------------------------------------------
+
+def test_degree_counts_one_per_constraint_even_with_nested_duplicates():
+    # `referenced_cell_ids` is a set, so a cell used twice within the same
+    # constraint (e.g. both sides of CountConstraint) still counts once.
+    nested = AllOf((
+        CountConstraint(Count((0, 1)), Comparison.EQ, Count((1,))),
+        Same(3, 1),
+        ConnectedConstraint((0, 2), is_criminal=True),
+    ))
+    assert referenced_cell_ids(nested) == {0, 1, 2, 3}
+
+
+def test_order_by_degree_prioritizes_most_referenced_cells():
+    # Cell 0 is read by both constraints, cell 1 by one, cells 2 and 3 by none.
+    constraints = [
+        CountConstraint(Count((0, 1)), Comparison.EQ, 1),
+        Fact(0, True),
+    ]
+    ordered = order_free_cells_by_degree([3, 2, 1, 0], constraints)
+    assert ordered == [0, 1, 3, 2]  # ties keep their original relative order
+
+
+def test_order_by_degree_is_a_no_op_without_constraints():
+    assert order_free_cells_by_degree([3, 2, 1, 0], []) == [3, 2, 1, 0]
 
 
 # ---- has_solution ---------------------------------------------------------
@@ -143,6 +206,23 @@ def test_has_solution_contradictory_clues():
     none = make_clue(3, CountConstraint(Count(ALL), Comparison.EQ, 0))
     state = make_public_state(BOARD, clues=[EXACTLY_ONE, none])
     assert CHECKER.has_solution(state) is False
+
+
+def test_has_solution_with_fact_and_same():
+    # Clue: cell 0 is a criminal, and cell 1 matches cell 0's status.
+    clues = [make_clue(5, Fact(0, True)), make_clue(6, Same(0, 1))]
+    state = make_public_state(BOARD, clues=clues)
+    assert CHECKER.has_solution(state) is True
+    assert CHECKER.has_solution(state, Verdict(1, True)) is True
+    assert CHECKER.has_solution(state, Verdict(1, False)) is False  # must match cell 0
+
+
+def test_has_solution_with_different():
+    # Clue: cell 0 is innocent, and cell 1 differs from cell 0.
+    clues = [make_clue(5, Fact(0, False)), make_clue(6, Different(0, 1))]
+    state = make_public_state(BOARD, clues=clues)
+    assert CHECKER.has_solution(state, Verdict(1, True)) is True
+    assert CHECKER.has_solution(state, Verdict(1, False)) is False
 
 
 def test_has_solution_ignores_unrevealed_information():
