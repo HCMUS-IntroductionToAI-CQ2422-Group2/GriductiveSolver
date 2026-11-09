@@ -4,24 +4,84 @@ import { ApiError, GameApi, MockGameApi } from "./api.js";
 // { puzzle_id, height, width, is_complete,
 //   cells: [{ id, row, column, character_name, profession, is_criminal: true|false|null }],
 //   revealed_clues: [{ id, source_cell_id, description_nl, referenced_cell_ids }] }
+
+// Toàn bộ chữ hiển thị trên UI nằm ở đây, để đổi ngôn ngữ hoặc thuật ngữ chỉ cần sửa một chỗ.
+const TEXT = {
+  innocent: "Innocent",
+  criminal: "Criminal",
+  flagInnocent: "INNOCENT",
+  flagCriminal: "CRIMINAL",
+  flagUnrevealed: "UNREVEALED",
+  unrevealed: "unrevealed",
+  revealedCount: (n) => `${n} revealed`,
+  noSelection: "No character selected",
+  unknownCell: "Unknown cell",
+  publicClue: "Public starting clue",
+  revealedBy: "REVEALED BY",
+  newBadge: "NEW",
+  noClues: "No clues yet. Prove a character to reveal their clue.",
+  noTargets: "No cell mapping provided.",
+  live: "LIVE API",
+  mock: "OFFLINE · MOCK",
+  footerLive: "Connected to backend API",
+  footerMock: "Backend unreachable — showing local mock data (read-only)",
+  restartToast: "Board restored to its initial public state.",
+  noPuzzles: "The backend has no puzzles to load.",
+  loadedToast: (id) => `Case "${id}" is loaded.`,
+  acceptedToast: (name, status) => `Verdict accepted: ${name} is ${status.toLowerCase()}.`,
+  noClueAttached: (name) => `${name} has no clue attached.`,
+  caseClosedTitle: "Case closed",
+  caseClosedBody: "Every character has a proven verdict. Well reasoned!",
+  hintFoundTitle: "A small nudge",
+  hintFoundBody: (label, status, checks) => `${label} can now be proven ${status.toLowerCase()}. The card is selected for you. (${checks})`,
+  hintSolvedTitle: "Nothing left to prove",
+  hintSolvedBody: (checks) => `Every character already has a verdict. (${checks})`,
+  hintUnknownTitle: "No forced verdict",
+  hintUnknownBody: (checks) => `The public clues do not force any remaining card yet. (${checks})`,
+  inconsistentTitle: "Inconsistent clues",
+  hintInconsistentBody: (checks) => `The public clues contradict each other — this puzzle has no solution. (${checks})`,
+  satChecks: (n) => `${n} SAT check${n === 1 ? "" : "s"}`,
+  solveTitles: { SOLVED: "Solved", STUCK: "Stuck", INCONSISTENT: "Inconsistent clues" },
+  solveStuck: "No further verdict is forced by the public clues.",
+  solveInconsistent: "The public clues contradict each other.",
+  solveDone: "Every verdict was proven without guessing.",
+  solveNone: "No new verdicts were made.",
+  opensClues: (ids) => ` → opens clue ${ids.map((id) => `#${id}`).join(", ")}`,
+  notProvableTitle: "Not provable yet",
+  notProvableBody: (name) => `The current public clues do not force a verdict for ${name}. The card remains unrevealed.`,
+  contradictedTitle: "Contradicted",
+  contradictedBody: (name) => `The public clues force the opposite status for ${name}. The card remains unrevealed.`,
+  alreadyProvedTitle: "Already proved",
+  alreadyProvedBody: (name) => `${name} already has a proven verdict.`,
+  unexpectedOutcome: "Unexpected outcome",
+  backendUnavailable: "Backend unavailable",
+  requestFailed: (status) => `Request failed (${status})`,
+  unexpectedError: "Unexpected error",
+};
+
 let api = new GameApi();
 const $ = (selector) => document.querySelector(selector);
 let state;
-let selectedId = null;
-let selectedClueId = null;
-let inspectMode = false;
+let selectedId = null;      // nhân vật đang chọn (để phán quyết hoặc xem manh mối của họ)
+let pinnedClueId = null;    // manh mối được bấm ghim: giữ highlight trên bảng
+let hoverClueId = null;     // manh mối đang rê chuột
+let hoverCellId = null;     // nhân vật đang rê chuột
 let busy = false;
 let toastTimer;
 const cardViews = new Map();
 let availableAvatars = new Set();
+let clueOrder = [];         // id manh mối theo thứ tự xuất hiện
+let newClueIds = new Set(); // manh mối vừa mở ở lần cập nhật gần nhất
 
 const coordinates = (row, column) => `${String.fromCharCode(65 + column)}${row + 1}`;
 const initials = (name) => name.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase();
 const isProved = (cell) => cell.is_criminal === true || cell.is_criminal === false;
-const statusLabel = (isCriminal) => isCriminal ? "CRIMINAL" : "INNOCENT";
-const statusName = (isCriminal) => isCriminal ? "Criminal" : "Innocent";
+const statusLabel = (isCriminal) => isCriminal ? TEXT.flagCriminal : TEXT.flagInnocent;
+const statusName = (isCriminal) => isCriminal ? TEXT.criminal : TEXT.innocent;
 const cellById = (id) => state.cells.find((cell) => cell.id === id);
-const cellLabel = (cell) => cell ? `${cell.character_name} (${coordinates(cell.row, cell.column)})` : "Unknown cell";
+const clueById = (id) => state.revealed_clues.find((clue) => clue.id === id);
+const cellLabel = (cell) => cell ? `${cell.character_name} (${coordinates(cell.row, cell.column)})` : TEXT.unknownCell;
+const clueTag = (id) => `#${String(id).padStart(2, "0")}`;
 
 function showAvatar(portrait, name) {
   const slug = name.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase()
@@ -52,6 +112,8 @@ async function loadAvatars() {
   }
 }
 
+// ---------- Bảng nhân vật ----------
+
 function renderBoard() {
   const board = $("#board");
   board.style.setProperty("--columns", state.width);
@@ -72,53 +134,6 @@ function renderBoard() {
   board.replaceChildren(grid);
 }
 
-function render() {
-  for (const cell of state.cells) {
-    const { card, flag } = cardViews.get(cell.id);
-    const isRevealed = isProved(cell);
-    card.classList.toggle("is-revealed", isRevealed);
-    card.classList.toggle("is-hidden", !isRevealed);
-    card.setAttribute("aria-label", `${coordinates(cell.row, cell.column)} ${cell.character_name}${isRevealed ? `, ${statusName(cell.is_criminal)}` : ", unrevealed"}`);
-    flag.classList.toggle("flag-criminal", cell.is_criminal === true);
-    flag.classList.toggle("flag-innocent", cell.is_criminal === false);
-    flag.textContent = isRevealed ? statusLabel(cell.is_criminal) : "UNREVEALED";
-  }
-  const revealedCount = state.cells.filter(isProved).length;
-  $("#case-name").textContent = state.puzzle_id;
-  $("#board-size").textContent = `${state.height} × ${state.width}`;
-  $("#known-count").textContent = `${revealedCount} revealed`;
-  $("#progress-label").textContent = `${revealedCount} / ${state.cells.length}`;
-  $("#progress-bar").style.width = `${state.cells.length ? revealedCount / state.cells.length * 100 : 0}%`;
-  renderSelection();
-}
-
-function renderSelection() {
-  const clue = state.revealed_clues.find((item) => item.id === selectedClueId);
-  const highlighted = new Set(clue?.referenced_cell_ids);
-  for (const [id, { card }] of cardViews) {
-    card.classList.toggle("is-selected", id === selectedId);
-    card.classList.toggle("is-highlighted", highlighted.has(id));
-  }
-  renderControls();
-  renderInspector();
-}
-
-function renderControls() {
-  const cell = cellById(selectedId);
-  $("#selected-label").textContent = cell ? `${cell.character_name} · ${coordinates(cell.row, cell.column)}` : "No character selected";
-  const live = api.mode === "live";
-  const canSubmit = live && !busy && cell && !isProved(cell);
-  document.querySelectorAll(".verdict-button").forEach((button) => {
-    button.disabled = !canSubmit;
-  });
-  $("#load-case").disabled = busy;
-  $("#restart-btn").disabled = busy;
-  $("#hint-btn").disabled = busy || !live;
-  $("#autosolve-btn").disabled = busy || !live;
-  $("#inspect-toggle").disabled = busy;
-  $("#board").setAttribute("aria-busy", String(busy));
-}
-
 function makeCard(cell) {
   const card = document.createElement("button");
   card.className = "character-card";
@@ -137,64 +152,146 @@ function makeCard(cell) {
   card.append(flag);
   const coord = document.createElement("span"); coord.className = "card-coordinate"; coord.textContent = coordinates(cell.row, cell.column); card.append(coord);
   card.addEventListener("click", () => onCardClick(cellById(cell.id)));
+  card.addEventListener("mouseenter", () => { hoverCellId = cell.id; renderHighlights(); });
+  card.addEventListener("mouseleave", () => { if (hoverCellId === cell.id) { hoverCellId = null; renderHighlights(); } });
+  card.addEventListener("focus", () => { hoverCellId = cell.id; renderHighlights(); });
+  card.addEventListener("blur", () => { if (hoverCellId === cell.id) { hoverCellId = null; renderHighlights(); } });
   return { card, flag, portrait };
+}
+
+function render() {
+  for (const cell of state.cells) {
+    const { card, flag } = cardViews.get(cell.id);
+    const isRevealed = isProved(cell);
+    card.classList.toggle("is-revealed", isRevealed);
+    card.classList.toggle("is-hidden", !isRevealed);
+    card.setAttribute("aria-label", `${coordinates(cell.row, cell.column)} ${cell.character_name}${isRevealed ? `, ${statusName(cell.is_criminal)}` : `, ${TEXT.unrevealed}`}`);
+    flag.classList.toggle("flag-criminal", cell.is_criminal === true);
+    flag.classList.toggle("flag-innocent", cell.is_criminal === false);
+    flag.textContent = isRevealed ? statusLabel(cell.is_criminal) : TEXT.flagUnrevealed;
+  }
+  const revealedCount = state.cells.filter(isProved).length;
+  $("#case-name").textContent = state.puzzle_id;
+  $("#board-size").textContent = `${state.height} × ${state.width}`;
+  $("#known-count").textContent = TEXT.revealedCount(revealedCount);
+  $("#progress-label").textContent = `${revealedCount} / ${state.cells.length}`;
+  $("#progress-bar").style.width = `${state.cells.length ? revealedCount / state.cells.length * 100 : 0}%`;
+  renderClueFeed();
+  renderSelection();
+}
+
+function renderSelection() {
+  for (const [id, { card }] of cardViews) card.classList.toggle("is-selected", id === selectedId);
+  renderControls();
+  renderHighlights();
+}
+
+function renderControls() {
+  const cell = cellById(selectedId);
+  $("#selected-label").textContent = cell ? `${cell.character_name} · ${coordinates(cell.row, cell.column)}` : TEXT.noSelection;
+  const live = api.mode === "live";
+  const canSubmit = live && !busy && cell && !isProved(cell);
+  document.querySelectorAll(".verdict-button").forEach((button) => { button.disabled = !canSubmit; });
+  $("#load-case").disabled = busy;
+  $("#restart-btn").disabled = busy;
+  $("#hint-btn").disabled = busy || !live;
+  $("#autosolve-btn").disabled = busy || !live;
+  $("#board").setAttribute("aria-busy", String(busy));
+}
+
+// ---------- Liên kết hai chiều manh mối ↔ nhân vật ----------
+
+// Manh mối đang được "soi": ưu tiên manh mối đang rê chuột, sau đó tới manh mối đã ghim.
+function activeClue() { return clueById(hoverClueId ?? pinnedClueId); }
+
+// Nhân vật đang được "soi": ưu tiên nhân vật đang rê chuột, sau đó tới nhân vật đang chọn.
+function activeCellId() { return hoverCellId ?? selectedId; }
+
+function renderHighlights() {
+  const clue = activeClue();
+  const mentioned = new Set(clue?.referenced_cell_ids);
+  for (const [id, { card }] of cardViews) {
+    card.classList.toggle("is-highlighted", mentioned.has(id));
+    card.classList.toggle("is-clue-source", clue?.source_cell_id === id);
+  }
+
+  const cellId = clue ? null : activeCellId();
+  document.querySelectorAll(".clue-card").forEach((item) => {
+    const id = Number(item.dataset.clueId);
+    const data = clueById(id);
+    item.classList.toggle("is-active", id === clue?.id);
+    item.classList.toggle("is-pinned", id === pinnedClueId);
+    item.classList.toggle("is-own", cellId != null && data?.source_cell_id === cellId);
+    item.classList.toggle("is-mentioning", cellId != null && (data?.referenced_cell_ids ?? []).includes(cellId));
+    item.querySelectorAll("[data-target-id]").forEach((chip) => chip.classList.toggle("is-current", Number(chip.dataset.targetId) === cellId));
+  });
 }
 
 function onCardClick(cell) {
   if (busy) return;
-
-  const isRevealed = isProved(cell);
-  if (inspectMode) {
-    inspectMode = false; $("#inspect-toggle").classList.remove("active");
-    if (!isRevealed) showToast("Only a revealed card can be inspected.");
-  }
-  if (isRevealed) {
-    selectedId = cell.id;
-    // Một ô có thể mở nhiều clue: bấm lại cùng ô để xoay vòng qua các clue của nó.
-    const clues = state.revealed_clues.filter((item) => item.source_cell_id === cell.id);
-    const current = clues.findIndex((item) => item.id === selectedClueId);
-    selectedClueId = clues.length ? clues[(current + 1) % clues.length].id : null;
-    if (!clues.length) showToast(`${cell.character_name} has no clue attached.`);
-    $("#inspector").classList.add("open");
-  } else {
-    selectedId = selectedId === cell.id ? null : cell.id;
-    selectedClueId = null;
-    $("#inspector").classList.remove("open");
+  selectedId = selectedId === cell.id ? null : cell.id;
+  pinnedClueId = null;
+  if (selectedId != null && isProved(cell)) {
+    const own = state.revealed_clues.filter((clue) => clue.source_cell_id === cell.id);
+    if (!own.length) showToast(TEXT.noClueAttached(cell.character_name));
+    else document.querySelector(`.clue-card[data-clue-id="${own[0].id}"]`)?.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }
   renderSelection();
 }
 
-function renderInspector() {
-  const content = $("#inspector-content");
-  const clue = state.revealed_clues.find((item) => item.id === selectedClueId);
-  if (!clue) {
-    content.innerHTML = `<div class="empty-state"><span class="empty-icon">⌕</span><strong>Nothing under the lens</strong><p>Select a revealed card or a clue below to highlight the cells it refers to.</p></div>${renderClueList()}`;
-    bindClueList(content);
+// ---------- Panel manh mối (luôn mở) ----------
+
+function trackClues(next, { reset }) {
+  const ids = next.revealed_clues.map((clue) => clue.id);
+  if (reset) {
+    clueOrder = ids;
+    newClueIds = new Set();
     return;
   }
+  const added = ids.filter((id) => !clueOrder.includes(id));
+  clueOrder = [...clueOrder.filter((id) => ids.includes(id)), ...added];
+  if (added.length) newClueIds = new Set(added);
+}
+
+function renderClueFeed() {
+  const feed = $("#clue-feed");
+  $("#clue-count").textContent = state.revealed_clues.length;
+  if (!state.revealed_clues.length) {
+    feed.innerHTML = `<div class="empty-state"><span class="empty-icon">⌕</span><p>${escapeHtml(TEXT.noClues)}</p></div>`;
+    return;
+  }
+  // Mới nhất lên đầu.
+  const ordered = [...clueOrder].reverse().map(clueById).filter(Boolean);
+  feed.innerHTML = ordered.map(renderClueCard).join("");
+  feed.querySelectorAll(".clue-card").forEach((item) => {
+    const id = Number(item.dataset.clueId);
+    item.addEventListener("mouseenter", () => { hoverClueId = id; renderHighlights(); });
+    item.addEventListener("mouseleave", () => { if (hoverClueId === id) { hoverClueId = null; renderHighlights(); } });
+    item.addEventListener("focus", () => { hoverClueId = id; renderHighlights(); });
+    item.addEventListener("blur", () => { if (hoverClueId === id) { hoverClueId = null; renderHighlights(); } });
+    item.addEventListener("click", () => {
+      if (busy) return;
+      pinnedClueId = pinnedClueId === id ? null : id;
+      renderHighlights();
+    });
+  });
+}
+
+function renderClueCard(clue) {
   const source = clue.source_cell_id == null ? null : cellById(clue.source_cell_id);
-  const targetCells = (clue.referenced_cell_ids || []).map(cellById).filter(Boolean);
-  content.innerHTML = `<div class="clue-source"><span class="clue-bullet">✳</span><span><small>REVEALED BY</small><strong>${escapeHtml(source?.character_name ?? "Public starting clue")}</strong></span><span class="clue-id">#${String(clue.id).padStart(2, "0")}</span></div><blockquote>${escapeHtml(clue.description_nl)}</blockquote><div class="region-label">REFERENCED CELLS <span>${targetCells.length}</span></div><div class="target-list">${targetCells.map((cell) => `<span>${coordinates(cell.row, cell.column)} <b>${escapeHtml(cell.character_name)}</b></span>`).join("") || "<span class='no-targets'>No cell mapping provided.</span>"}</div><div class="truth-note"><span>✓</span> This clue is always true, regardless of its owner's status.</div>${renderClueList()}`;
-  bindClueList(content);
+  const sourceLabel = source ? `${source.character_name} · ${coordinates(source.row, source.column)}` : TEXT.publicClue;
+  const targets = (clue.referenced_cell_ids || []).map(cellById).filter(Boolean);
+  const chips = targets.map((cell) => `<span class="target-chip" data-target-id="${cell.id}">${coordinates(cell.row, cell.column)} <b>${escapeHtml(cell.character_name)}</b></span>`).join("")
+    || `<span class="target-chip no-targets">${escapeHtml(TEXT.noTargets)}</span>`;
+  const isNew = newClueIds.has(clue.id);
+  return `<button type="button" class="clue-card${isNew ? " is-new" : ""}${source ? "" : " is-public"}" data-clue-id="${clue.id}">
+    <span class="clue-card-head"><span class="clue-id">${clueTag(clue.id)}</span><small>${source ? TEXT.revealedBy : ""}</small><strong>${escapeHtml(sourceLabel)}</strong>${isNew ? `<span class="new-badge">${TEXT.newBadge}</span>` : ""}</span>
+    <span class="clue-text">${escapeHtml(clue.description_nl)}</span>
+    <span class="clue-targets">${chips}</span>
+  </button>`;
 }
 
-function renderClueList() {
-  if (!state.revealed_clues.length) return "";
-  const items = state.revealed_clues.map((clue) => `<button type="button" class="clue-list-item${clue.id === selectedClueId ? " active" : ""}" data-clue-id="${clue.id}"><span>#${String(clue.id).padStart(2, "0")}</span>${escapeHtml(clue.description_nl)}</button>`).join("");
-  return `<div class="region-label">PUBLIC CLUES <span>${state.revealed_clues.length}</span></div><div class="clue-list">${items}</div>`;
-}
-
-function bindClueList(container) {
-  container.querySelectorAll("[data-clue-id]").forEach((button) => button.addEventListener("click", () => {
-    if (busy) return;
-
-    const id = Number(button.dataset.clueId);
-    const clue = state.revealed_clues.find((item) => item.id === id);
-    selectedId = clue.source_cell_id;
-    selectedClueId = selectedClueId === id ? null : id;
-    renderSelection();
-  }));
-}
+// ---------- Tiện ích ----------
 
 function escapeHtml(value) { return String(value).replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]); }
 function showToast(message) { const toast = $("#toast"); toast.textContent = message; toast.classList.add("visible"); clearTimeout(toastTimer); toastTimer = setTimeout(() => toast.classList.remove("visible"), 3600); }
@@ -203,18 +300,28 @@ function showModal(title, message) { $("#modal-title").textContent = title; $("#
 function setState(next, { announceComplete = true } = {}) {
   const samePuzzle = state?.puzzle_id === next.puzzle_id;
   const wasComplete = samePuzzle && state.is_complete;
+  trackClues(next, { reset: !samePuzzle });
   state = next;
   if (!samePuzzle) renderBoard();
   if (selectedId != null && !cellById(selectedId)) selectedId = null;
-  if (!state.revealed_clues.some((clue) => clue.id === selectedClueId)) selectedClueId = null;
+  if (!clueById(pinnedClueId)) pinnedClueId = null;
+  if (!clueById(hoverClueId)) hoverClueId = null;
   render();
-  if (announceComplete && state.is_complete && !wasComplete) showModal("Case closed", "Every character has a proven verdict. Well reasoned!");
+  if (announceComplete && state.is_complete && !wasComplete) showModal(TEXT.caseClosedTitle, TEXT.caseClosedBody);
+}
+
+// Làm lại hoặc nạp đề: xoá trạng thái chọn và coi như ván mới.
+function resetBoard(next) {
+  selectedId = null; pinnedClueId = null; hoverClueId = null; hoverCellId = null;
+  state = null;
+  setState(next);
 }
 
 function setConnection(mode) {
   const live = mode === "live";
-  $("#connection-label").textContent = live ? "LIVE API" : "OFFLINE · MOCK";
-  $("#footer-mode").textContent = live ? "Connected to backend API" : "Backend unreachable — showing local mock data (read-only)";
+  $("#connection-label").textContent = live ? TEXT.live : TEXT.mock;
+  $(".connection-pill").classList.toggle("is-live", live);
+  $("#footer-mode").textContent = live ? TEXT.footerLive : TEXT.footerMock;
 }
 
 // Chạy một action gọi API: chặn bấm trùng và hiện lỗi thống nhất.
@@ -223,55 +330,52 @@ async function run(action) {
   busy = true; renderControls();
   try { await action(); }
   catch (error) {
-    if (error instanceof ApiError) showModal(error.status === 0 ? "Backend unavailable" : `Request failed (${error.status})`, error.message);
-    else { console.error(error); showModal("Unexpected error", error.message); }
+    if (error instanceof ApiError) showModal(error.status === 0 ? TEXT.backendUnavailable : TEXT.requestFailed(error.status), error.message);
+    else { console.error(error); showModal(TEXT.unexpectedError, error.message); }
   } finally { busy = false; renderControls(); }
 }
 
 async function connect() {
   try {
     api = new GameApi();
-    state = null;
-    setState(await api.getGame());
+    resetBoard(await api.getGame());
   } catch (error) {
     console.warn("Falling back to mock data:", error);
     api = new MockGameApi();
-    state = null;
-    setState(await api.getGame());
+    resetBoard(await api.getGame());
   }
   setConnection(api.mode);
+  renderControls();
 }
 
+// ---------- Hành động ----------
+
 $("#restart-btn").addEventListener("click", () => run(async () => {
-  selectedId = null; selectedClueId = null;
-  setState(await api.restart());
-  showToast("Board restored to its initial public state.");
+  resetBoard(await api.restart());
+  showToast(TEXT.restartToast);
 }));
 
 $("#load-case").addEventListener("click", () => run(async () => {
   const puzzleIds = await api.listPuzzles();
-  if (!puzzleIds.length) return showToast("The backend has no puzzles to load.");
+  if (!puzzleIds.length) return showToast(TEXT.noPuzzles);
   // Xoay vòng sang đề kế tiếp trong danh sách (hoặc nạp lại đề hiện tại nếu chỉ có 1).
   const next = puzzleIds[(puzzleIds.indexOf(state.puzzle_id) + 1) % puzzleIds.length];
-  const nextState = await api.loadPuzzle(next);
-  selectedId = null; selectedClueId = null; state = null;
-  setState(nextState);
-  showToast(`Case "${next}" is loaded.`);
+  resetBoard(await api.loadPuzzle(next));
+  showToast(TEXT.loadedToast(next));
 }));
 
 $("#hint-btn").addEventListener("click", () => run(async () => {
   const hint = await api.hint();
-  const checks = `${hint.sat_queries.length} SAT check${hint.sat_queries.length === 1 ? "" : "s"}`;
+  const checks = TEXT.satChecks(hint.sat_queries.length);
   if (hint.status === "FOUND") {
     const cell = cellById(hint.verdict.cell_id);
     selectedId = hint.verdict.cell_id;
-    selectedClueId = null;
-    $("#inspector").classList.remove("open");
+    pinnedClueId = null;
     renderSelection();
-    showModal("A small nudge", `${cellLabel(cell)} can now be proven ${statusName(hint.verdict.is_criminal).toLowerCase()}. The card is selected for you. (${checks})`);
-  } else if (hint.status === "SOLVED") showModal("Nothing left to prove", `Every character already has a verdict. (${checks})`);
-  else if (hint.status === "UNKNOWN") showModal("No forced verdict", `The public clues do not force any remaining card yet. (${checks})`);
-  else showModal("Inconsistent clues", `The public clues contradict each other — this puzzle has no solution. (${checks})`);
+    showModal(TEXT.hintFoundTitle, TEXT.hintFoundBody(cellLabel(cell), statusName(hint.verdict.is_criminal), checks));
+  } else if (hint.status === "SOLVED") showModal(TEXT.hintSolvedTitle, TEXT.hintSolvedBody(checks));
+  else if (hint.status === "UNKNOWN") showModal(TEXT.hintUnknownTitle, TEXT.hintUnknownBody(checks));
+  else showModal(TEXT.inconsistentTitle, TEXT.hintInconsistentBody(checks));
 }));
 
 $("#autosolve-btn").addEventListener("click", () => run(async () => {
@@ -279,14 +383,14 @@ $("#autosolve-btn").addEventListener("click", () => run(async () => {
   const before = state;
   const steps = result.trace.map((step) => {
     const cell = before.cells.find((item) => item.id === step.verdict.cell_id);
-    const opened = step.revealed_clue_ids.length ? ` → opens clue ${step.revealed_clue_ids.map((id) => `#${id}`).join(", ")}` : "";
+    const opened = step.revealed_clue_ids.length ? TEXT.opensClues(step.revealed_clue_ids) : "";
     return `${step.step}. ${cellLabel(cell)}: ${statusName(step.verdict.is_criminal)}${opened}`;
   });
   selectedId = null;
   setState(result.state, { announceComplete: false });
-  const title = { SOLVED: "Solved", STUCK: "Stuck", INCONSISTENT: "Inconsistent clues" }[result.status] ?? result.status;
-  const summary = result.status === "STUCK" ? "No further verdict is forced by the public clues." : result.status === "INCONSISTENT" ? "The public clues contradict each other." : "Every verdict was proven without guessing.";
-  showModal(title, `${summary}\n\n${steps.length ? steps.join("\n") : "No new verdicts were made."}`);
+  const title = TEXT.solveTitles[result.status] ?? result.status;
+  const summary = result.status === "STUCK" ? TEXT.solveStuck : result.status === "INCONSISTENT" ? TEXT.solveInconsistent : TEXT.solveDone;
+  showModal(title, `${summary}\n\n${steps.length ? steps.join("\n") : TEXT.solveNone}`);
 }));
 
 $(".verdict-controls").addEventListener("click", (event) => {
@@ -298,26 +402,27 @@ $(".verdict-controls").addEventListener("click", (event) => {
     const name = cellLabel(cellById(cellId));
     if (result.outcome === "ACCEPTED") {
       selectedId = cellId;
-      const opened = result.state.revealed_clues.find((clue) => clue.source_cell_id === cellId);
-      selectedClueId = opened?.id ?? null;
       setState(result.state);
-      showToast(`Verdict accepted: ${name} is ${statusName(isCriminal).toLowerCase()}.`);
+      showToast(TEXT.acceptedToast(name, statusName(isCriminal)));
       return;
     }
     setState(result.state);
-    if (result.outcome === "NOT_PROVABLE") showModal("Not provable yet", `The current public clues do not force a verdict for ${name}. The card remains unrevealed.`);
-    else if (result.outcome === "CONTRADICTED") showModal("Contradicted", `The public clues force the opposite status for ${name}. The card remains unrevealed.`);
-    else if (result.outcome === "ALREADY_PROVED") showModal("Already proved", `${name} already has a proven verdict.`);
-    else showModal("Unexpected outcome", String(result.outcome));
+    if (result.outcome === "NOT_PROVABLE") showModal(TEXT.notProvableTitle, TEXT.notProvableBody(name));
+    else if (result.outcome === "CONTRADICTED") showModal(TEXT.contradictedTitle, TEXT.contradictedBody(name));
+    else if (result.outcome === "ALREADY_PROVED") showModal(TEXT.alreadyProvedTitle, TEXT.alreadyProvedBody(name));
+    else showModal(TEXT.unexpectedOutcome, String(result.outcome));
   });
 });
 
-$("#inspect-toggle").addEventListener("click", () => { inspectMode = !inspectMode; $("#inspect-toggle").classList.toggle("active", inspectMode); showToast(inspectMode ? "Choose a revealed card to inspect its clue." : "Clue inspection closed."); });
-$("#close-inspector").addEventListener("click", () => $("#inspector").classList.remove("open"));
 $("#modal-close").addEventListener("click", () => { $("#modal-backdrop").hidden = true; });
 $("#modal-ok").addEventListener("click", () => { $("#modal-backdrop").hidden = true; });
 $("#modal-backdrop").addEventListener("click", (event) => { if (event.target.id === "modal-backdrop") event.currentTarget.hidden = true; });
-window.addEventListener("keydown", (event) => { if (event.key === "Escape") { $("#modal-backdrop").hidden = true; $("#inspector").classList.remove("open"); } });
+window.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape") return;
+  $("#modal-backdrop").hidden = true;
+  selectedId = null; pinnedClueId = null;
+  if (state) renderSelection();
+});
 
 void loadAvatars();
 await connect();
