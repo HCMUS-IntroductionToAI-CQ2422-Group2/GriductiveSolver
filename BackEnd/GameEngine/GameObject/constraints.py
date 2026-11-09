@@ -58,17 +58,22 @@ class Fact:
     is_criminal: bool = True
 
 @dataclass(frozen=True)
-class AnyOf:
-    """Equivalent to logical OR: At least one inner constraint must be satisfied."""
-    constraints: tuple[Constraint, ...]
+class Same:
+    """Two named people have the same status."""
+    cell_id_1: str
+    cell_id_2: str
 
 @dataclass(frozen=True)
-class Not:
-    """Equivalent to logical NOT: The inner constraint must be false."""
-    constraint: Constraint
+class Different:
+    """Two named people have different statuses."""
+    cell_id_1: str
+    cell_id_2: str
 
-# Nhớ cập nhật lại dòng cuối cùng này để nó bao trùm hết các type mới
 Constraint = (
-    Fact | CountConstraint | ParityConstraint | ConnectedConstraint | 
-    AllOf | AnyOf | Not
+    CountConstraint
+    | ParityConstraint
+    | ConnectedConstraint
+    | AllOf
+    | Same
+    | Different
 )
