@@ -3,18 +3,18 @@ from BackEnd.GameEngine.BruteForceChecker import (
     cell_positions,
     evaluate_constraint,
     order_free_cells_by_degree,
-    referenced_cells,
 )
 from BackEnd.GameEngine.GameObject.constraints import (
     AllOf,
-    AnyOf,
     Comparison,
     ConnectedConstraint,
     Count,
     CountConstraint,
+    Different,
     Fact,
-    Not,
     ParityConstraint,
+    Same,
+    referenced_cell_ids,
 )
 from BackEnd.GameEngine.GameObject.objects import Verdict
 from tests.helpers import make_board, make_clue, make_public_state
@@ -110,23 +110,20 @@ def test_fact_innocent():
     assert ev(f, {0: True}) is False
 
 
-# ---- AnyOf ------------------------------------------------------------------
+# ---- Same / Different -------------------------------------------------------
 
-def test_any_of():
-    a = AnyOf((Fact(0, True), Fact(1, True)))
-    assert ev(a, {0: True}) is True  # short-circuits before cell 1 is known
-    assert ev(a, {0: False, 1: True}) is True
-    assert ev(a, {0: False, 1: False}) is False
-    assert ev(a, {0: False}) is None  # still waiting on cell 1
+def test_same():
+    s = Same(0, 1)
+    assert ev(s, {0: True, 1: True}) is True
+    assert ev(s, {0: True, 1: False}) is False
+    assert ev(s, {0: True}) is None
 
 
-# ---- Not ----------------------------------------------------------------------
-
-def test_not():
-    n = Not(Fact(0, True))
-    assert ev(n, {0: True}) is False
-    assert ev(n, {0: False}) is True
-    assert ev(n, {}) is None
+def test_different():
+    d = Different(0, 1)
+    assert ev(d, {0: True, 1: False}) is True
+    assert ev(d, {0: True, 1: True}) is False
+    assert ev(d, {1: False}) is None
 
 
 # ---- AllOf ----------------------------------------------------------------
@@ -143,13 +140,15 @@ def test_all_of():
 
 # ---- degree-ordering heuristic ---------------------------------------------
 
-def test_referenced_cells_covers_all_constraint_kinds():
+def test_degree_counts_one_per_constraint_even_with_nested_duplicates():
+    # `referenced_cell_ids` is a set, so a cell used twice within the same
+    # constraint (e.g. both sides of CountConstraint) still counts once.
     nested = AllOf((
-        CountConstraint(Count((0, 1)), Comparison.EQ, Count((2,))),
-        AnyOf((Fact(3, True), Not(ParityConstraint(Count((1,)), is_odd=True)))),
+        CountConstraint(Count((0, 1)), Comparison.EQ, Count((1,))),
+        Same(3, 1),
         ConnectedConstraint((0, 2), is_criminal=True),
     ))
-    assert sorted(referenced_cells(nested)) == [0, 0, 1, 1, 2, 2, 3]
+    assert referenced_cell_ids(nested) == {0, 1, 2, 3}
 
 
 def test_order_by_degree_prioritizes_most_referenced_cells():
@@ -209,17 +208,21 @@ def test_has_solution_contradictory_clues():
     assert CHECKER.has_solution(state) is False
 
 
-def test_has_solution_with_fact_and_any_of():
-    # Clue: cell 0 or cell 1 is the criminal.
-    either = make_clue(5, AnyOf((Fact(0, True), Fact(1, True))))
-    state = make_public_state(BOARD, clues=[either])
+def test_has_solution_with_fact_and_same():
+    # Clue: cell 0 is a criminal, and cell 1 matches cell 0's status.
+    clues = [make_clue(5, Fact(0, True)), make_clue(6, Same(0, 1))]
+    state = make_public_state(BOARD, clues=clues)
     assert CHECKER.has_solution(state) is True
-    assert CHECKER.has_solution(state, Verdict(0, False)) is True  # 1 can be it
+    assert CHECKER.has_solution(state, Verdict(1, True)) is True
+    assert CHECKER.has_solution(state, Verdict(1, False)) is False  # must match cell 0
 
-    # Once 0 is known innocent, 1 is forced to be the criminal.
-    narrowed = make_public_state(BOARD, clues=[either], proved={0: False})
-    assert CHECKER.has_solution(narrowed, Verdict(1, False)) is False
-    assert CHECKER.has_solution(narrowed, Verdict(1, True)) is True
+
+def test_has_solution_with_different():
+    # Clue: cell 0 is innocent, and cell 1 differs from cell 0.
+    clues = [make_clue(5, Fact(0, False)), make_clue(6, Different(0, 1))]
+    state = make_public_state(BOARD, clues=clues)
+    assert CHECKER.has_solution(state, Verdict(1, True)) is True
+    assert CHECKER.has_solution(state, Verdict(1, False)) is False
 
 
 def test_has_solution_ignores_unrevealed_information():

@@ -7,19 +7,20 @@ as soon as any revealed clue is definitely violated.
 from __future__ import annotations
 
 from collections import Counter, deque
-from typing import Iterator, Mapping
+from typing import Mapping
 
 from BackEnd.GameEngine.GameObject.constraints import (
     AllOf,
-    AnyOf,
     Comparison,
     ConnectedConstraint,
     Constraint,
     Count,
     CountConstraint,
+    Different,
     Fact,
-    Not,
     ParityConstraint,
+    Same,
+    referenced_cell_ids,
 )
 from BackEnd.GameEngine.GameObject.objects import Board, Verdict
 from BackEnd.GameEngine.GameState import PublicState
@@ -101,25 +102,6 @@ def _is_connected(cell_ids: set[int], positions: Positions) -> bool:
     return len(seen) == len(cell_ids)
 
 
-def referenced_cells(constraint: Constraint) -> Iterator[int]:
-    """Yield every cell id a constraint reads (for ordering heuristics)."""
-    if isinstance(constraint, Fact):
-        yield constraint.target
-    elif isinstance(constraint, CountConstraint):
-        yield from constraint.left.targets
-        if isinstance(constraint.right, Count):
-            yield from constraint.right.targets
-    elif isinstance(constraint, ParityConstraint):
-        yield from constraint.count.targets
-    elif isinstance(constraint, ConnectedConstraint):
-        yield from constraint.targets
-    elif isinstance(constraint, (AllOf, AnyOf)):
-        for child in constraint.constraints:
-            yield from referenced_cells(child)
-    elif isinstance(constraint, Not):
-        yield from referenced_cells(constraint.constraint)
-
-
 def order_free_cells_by_degree(
     free_cells: list[int],
     constraints: list[Constraint],
@@ -134,7 +116,7 @@ def order_free_cells_by_degree(
     """
     degree = Counter()
     for constraint in constraints:
-        degree.update(referenced_cells(constraint))
+        degree.update(referenced_cell_ids(constraint))
     return sorted(free_cells, key=lambda cid: degree[cid], reverse=True)
 
 
@@ -149,10 +131,15 @@ def evaluate_constraint(
     the unassigned cells, and None when it still depends on them.
     """
     if isinstance(constraint, Fact):
-        value = assignment.get(constraint.target)
-        if value is None:
+        status = assignment.get(constraint.target)
+        return None if status is None else status == constraint.is_criminal
+
+    if isinstance(constraint, (Same, Different)):
+        left = assignment.get(constraint.cell_id_1)
+        right = assignment.get(constraint.cell_id_2)
+        if left is None or right is None:
             return None
-        return value == constraint.is_criminal
+        return (left == right) if isinstance(constraint, Same) else (left != right)
 
     if isinstance(constraint, CountConstraint):
         left = _count_range(constraint.left, assignment)
@@ -189,20 +176,6 @@ def evaluate_constraint(
             if result is None:
                 undecided = True
         return None if undecided else True
-
-    if isinstance(constraint, AnyOf):
-        undecided = False
-        for child in constraint.constraints:
-            result = evaluate_constraint(child, assignment, positions)
-            if result is True:
-                return True
-            if result is None:
-                undecided = True
-        return None if undecided else False
-
-    if isinstance(constraint, Not):
-        result = evaluate_constraint(constraint.constraint, assignment, positions)
-        return None if result is None else not result
 
     raise TypeError(f"Unsupported constraint type: {type(constraint).__name__}")
 

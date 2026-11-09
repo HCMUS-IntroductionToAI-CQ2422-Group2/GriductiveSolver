@@ -5,13 +5,13 @@ import pytest
 from BackEnd.GameEngine.BruteForceChecker import BruteForceChecker
 from BackEnd.GameEngine.GameObject.constraints import (
     AllOf,
-    AnyOf,
     Comparison,
     Count,
     CountConstraint,
+    Different,
     Fact,
-    Not,
     ParityConstraint,
+    Same,
 )
 from BackEnd.GameEngine.GameObject.objects import Board, Cell, PuzzleDefinition, Verdict
 from BackEnd.GameEngine.validation import PuzzleValidationError, validate_puzzle
@@ -98,23 +98,18 @@ def test_fact_unknown_target():
     assert_invalid(with_(clues=(bad,)), r"unknown cells \[99\]")
 
 
-def test_any_of_unknown_target():
-    bad = make_clue(9, AnyOf((Fact(0, True), Fact(99, True))))
+def test_same_unknown_target():
+    bad = make_clue(9, Same(0, 99))
     assert_invalid(with_(clues=(bad,)), r"unknown cells \[99\]")
 
 
-def test_not_unknown_target():
-    bad = make_clue(9, Not(Fact(99, True)))
+def test_different_unknown_target():
+    bad = make_clue(9, Different(99, 0))
     assert_invalid(with_(clues=(bad,)), r"unknown cells \[99\]")
 
 
-def test_count_duplicate_targets_inside_any_of():
-    dup = make_clue(9, AnyOf((CountConstraint(Count((0, 0)), Comparison.EQ, 1), Fact(1, True))))
-    assert_invalid(with_(clues=(dup,)), r"duplicate cell ids in a Count: \[0\]")
-
-
-def test_count_duplicate_targets_inside_not():
-    dup = make_clue(9, Not(CountConstraint(Count((0, 0)), Comparison.EQ, 1)))
+def test_count_duplicate_targets_inside_all_of():
+    dup = make_clue(9, AllOf((CountConstraint(Count((0, 0)), Comparison.EQ, 1), Fact(1, True))))
     assert_invalid(with_(clues=(dup,)), r"duplicate cell ids in a Count: \[0\]")
 
 

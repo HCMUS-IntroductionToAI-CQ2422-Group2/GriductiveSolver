@@ -1,20 +1,16 @@
 from __future__ import annotations
 
 from collections import Counter
-from typing import Iterator
 
 from BackEnd.GameEngine.ConstraintChecker import ConstraintChecker
 from BackEnd.GameEngine.GameEngine import GameEngine, SubmitOutcome
 from BackEnd.GameEngine.GameObject.constraints import (
     AllOf,
-    AnyOf,
-    ConnectedConstraint,
     Constraint,
     Count,
     CountConstraint,
-    Fact,
-    Not,
     ParityConstraint,
+    referenced_cell_ids,
 )
 from BackEnd.GameEngine.GameObject.objects import Board, PuzzleDefinition, Verdict
 from BackEnd.GameEngine.GameState import PublicState
@@ -43,29 +39,6 @@ def validate_puzzle(
 
 def _duplicates(values) -> list:
     return sorted(v for v, n in Counter(values).items() if n > 1)
-
-
-def _constraint_targets(constraint: Constraint) -> Iterator[int]:
-    """Yield every cell id referenced by a constraint (recursively)."""
-    if isinstance(constraint, Fact):
-        yield constraint.target
-    elif isinstance(constraint, CountConstraint):
-        yield from constraint.left.targets
-        if isinstance(constraint.right, Count):
-            yield from constraint.right.targets
-    elif isinstance(constraint, ParityConstraint):
-        yield from constraint.count.targets
-    elif isinstance(constraint, ConnectedConstraint):
-        yield from constraint.targets
-    elif isinstance(constraint, (AllOf, AnyOf)):
-        for child in constraint.constraints:
-            yield from _constraint_targets(child)
-    elif isinstance(constraint, Not):
-        yield from _constraint_targets(constraint.constraint)
-    else:
-        raise PuzzleValidationError(
-            f"Unsupported constraint type: {type(constraint).__name__}"
-        )
 
 
 def _check_grid(board: Board) -> None:
@@ -120,12 +93,11 @@ def _check_count_constraints(constraint: Constraint, clue_id: int) -> None:
                 )
     elif isinstance(constraint, ParityConstraint):
         _check_count(constraint.count, clue_id)
-    elif isinstance(constraint, (AllOf, AnyOf)):
+    elif isinstance(constraint, AllOf):
         for child in constraint.constraints:
             _check_count_constraints(child, clue_id)
-    elif isinstance(constraint, Not):
-        _check_count_constraints(constraint.constraint, clue_id)
-    # Other constraint kinds (e.g. Fact, ConnectedConstraint) have no Count to check.
+    # Other constraint kinds (e.g. Fact, Same, Different, ConnectedConstraint)
+    # have no Count to check.
 
 
 def _check_structure(puzzle: PuzzleDefinition) -> None:
@@ -145,7 +117,11 @@ def _check_structure(puzzle: PuzzleDefinition) -> None:
             raise PuzzleValidationError(
                 f"Clue {clue.id} has unknown source cell {clue.source_cell_id}"
             )
-        unknown = sorted(set(_constraint_targets(clue.constraint)) - cell_ids)
+        try:
+            targets = referenced_cell_ids(clue.constraint)
+        except TypeError as error:
+            raise PuzzleValidationError(str(error)) from error
+        unknown = sorted(targets - cell_ids)
         if unknown:
             raise PuzzleValidationError(
                 f"Clue {clue.id} references unknown cells {unknown}"
