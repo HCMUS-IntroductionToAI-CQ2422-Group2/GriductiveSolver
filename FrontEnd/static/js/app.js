@@ -14,7 +14,7 @@ const TEXT = {
   flagUnrevealed: "UNREVEALED",
   unrevealed: "unrevealed",
   revealedCount: (n) => `${n} revealed`,
-  noSelection: "No character selected",
+  verdictFor: (name) => `Verdict for ${name}`,
   unknownCell: "Unknown cell",
   publicClue: "Public starting clue",
   revealedBy: "REVEALED BY",
@@ -32,12 +32,8 @@ const TEXT = {
   noClueAttached: (name) => `${name} has no clue attached.`,
   caseClosedTitle: "Case closed",
   caseClosedBody: "Every character has a proven verdict. Well reasoned!",
-  hintFoundTitle: "A small nudge",
-  hintFoundBody: (label, status, checks) => `${label} can now be proven ${status.toLowerCase()}. The card is selected for you. (${checks})`,
-  hintSolvedTitle: "Nothing left to prove",
-  hintSolvedBody: (checks) => `Every character already has a verdict. (${checks})`,
-  hintUnknownTitle: "No forced verdict",
-  hintUnknownBody: (checks) => `The public clues do not force any remaining card yet. (${checks})`,
+  hintSolvedBody: (checks) => `Nothing left to prove: every character already has a verdict. (${checks})`,
+  hintUnknownBody: (checks) => `No forced verdict: the public clues do not force any remaining character yet. (${checks})`,
   inconsistentTitle: "Inconsistent clues",
   hintInconsistentBody: (checks) => `The public clues contradict each other — this puzzle has no solution. (${checks})`,
   satChecks: (n) => `${n} SAT check${n === 1 ? "" : "s"}`,
@@ -47,12 +43,14 @@ const TEXT = {
   solveDone: "Every verdict was proven without guessing.",
   solveNone: "No new verdicts were made.",
   opensClues: (ids) => ` → opens clue ${ids.map((id) => `#${id}`).join(", ")}`,
-  notProvableTitle: "Not provable yet",
-  notProvableBody: (name) => `The current public clues do not force a verdict for ${name}. The card remains unrevealed.`,
-  contradictedTitle: "Contradicted",
-  contradictedBody: (name) => `The public clues force the opposite status for ${name}. The card remains unrevealed.`,
-  alreadyProvedTitle: "Already proved",
-  alreadyProvedBody: (name) => `${name} already has a proven verdict.`,
+  notProvableToast: (name) => `Not provable yet: the clues don't force a verdict for ${name}. +1 mistake.`,
+  contradictedToast: (name) => `Contradicted: the clues force the opposite status for ${name}. +1 mistake.`,
+  alreadyProvedToast: (name) => `${name} already has a proven verdict.`,
+  selectFirst: "Select an unrevealed character first.",
+  hintStep1: (label) => `${label} can be proven now. Press Hint again to see the verdict.`,
+  hintStep2: (label, status) => `${label} is ${status.toLowerCase()}.`,
+  shortcutsTitle: "Keyboard shortcuts",
+  shortcutsBody: "← ↑ → ↓   Move between characters\nI   Verdict: Innocent\nC   Verdict: Criminal\nH   Hint (press twice to see the verdict)\nEsc   Clear selection / close dialog\n?   Show this list",
   unexpectedOutcome: "Unexpected outcome",
   backendUnavailable: "Backend unavailable",
   requestFailed: (status) => `Request failed (${status})`,
@@ -67,6 +65,9 @@ let pinnedClueId = null;    // manh mối được bấm ghim: giữ highlight t
 let hoverClueId = null;     // manh mối đang rê chuột
 let hoverCellId = null;     // nhân vật đang rê chuột
 let busy = false;
+let mistakes = 0;          // phán quyết bị từ chối (NOT_PROVABLE / CONTRADICTED) trong ván này
+let hintsUsed = 0;         // số lần xin gợi ý trong ván này (không tính là lỗi)
+let pendingHint = null;    // gợi ý nấc 1 đang chờ: { cellId, isCriminal }
 let toastTimer;
 const cardViews = new Map();
 let availableAvatars = new Set();
@@ -135,9 +136,12 @@ function renderBoard() {
 }
 
 function makeCard(cell) {
-  const card = document.createElement("button");
+  // Thẻ là div role=button để chứa được hai nút phán quyết bên trong.
+  const card = document.createElement("div");
   card.className = "character-card";
-  card.type = "button";
+  card.setAttribute("role", "button");
+  card.tabIndex = -1;
+  card.dataset.cellId = cell.id;
   const portrait = document.createElement("span");
   portrait.className = "portrait letter-avatar";
   portrait.setAttribute("aria-hidden", "true");
@@ -151,12 +155,25 @@ function makeCard(cell) {
   const flag = document.createElement("span"); flag.className = "card-flag";
   card.append(flag);
   const coord = document.createElement("span"); coord.className = "card-coordinate"; coord.textContent = coordinates(cell.row, cell.column); card.append(coord);
+  const actions = document.createElement("span"); actions.className = "card-actions"; actions.setAttribute("role", "group");
+  for (const [status, label] of [["INNOCENT", TEXT.innocent], ["CRIMINAL", TEXT.criminal]]) {
+    const button = document.createElement("button");
+    button.type = "button"; button.className = `card-verdict ${status.toLowerCase()}`; button.dataset.status = status;
+    button.innerHTML = `${label} <kbd>${label[0]}</kbd>`;
+    button.addEventListener("click", (event) => { event.stopPropagation(); submitVerdict(cell.id, status === "CRIMINAL"); });
+    actions.append(button);
+  }
+  card.append(actions);
   card.addEventListener("click", () => onCardClick(cellById(cell.id)));
+  card.addEventListener("keydown", (event) => {
+    if ((event.key === "Enter" || event.key === " ") && event.target === card) { event.preventDefault(); onCardClick(cellById(cell.id)); }
+  });
+  card.addEventListener("animationend", () => card.classList.remove("is-wrong"));
   card.addEventListener("mouseenter", () => { hoverCellId = cell.id; renderHighlights(); });
   card.addEventListener("mouseleave", () => { if (hoverCellId === cell.id) { hoverCellId = null; renderHighlights(); } });
   card.addEventListener("focus", () => { hoverCellId = cell.id; renderHighlights(); });
   card.addEventListener("blur", () => { if (hoverCellId === cell.id) { hoverCellId = null; renderHighlights(); } });
-  return { card, flag, portrait };
+  return { card, flag, portrait, actions };
 }
 
 function render() {
@@ -176,22 +193,33 @@ function render() {
   $("#known-count").textContent = TEXT.revealedCount(revealedCount);
   $("#progress-label").textContent = `${revealedCount} / ${state.cells.length}`;
   $("#progress-bar").style.width = `${state.cells.length ? revealedCount / state.cells.length * 100 : 0}%`;
+  $("#mistake-count").textContent = mistakes;
+  $("#hint-count").textContent = hintsUsed;
   renderClueFeed();
   renderSelection();
 }
 
 function renderSelection() {
-  for (const [id, { card }] of cardViews) card.classList.toggle("is-selected", id === selectedId);
+  // Chỉ một thẻ nhận Tab (roving tabindex); mũi tên di chuyển giữa các thẻ.
+  const focusId = selectedId ?? state.cells[0]?.id;
+  for (const [id, { card }] of cardViews) {
+    card.classList.toggle("is-selected", id === selectedId);
+    card.classList.toggle("is-hinted", id === pendingHint?.cellId);
+    card.tabIndex = id === focusId ? 0 : -1;
+  }
   renderControls();
   renderHighlights();
 }
 
 function renderControls() {
-  const cell = cellById(selectedId);
-  $("#selected-label").textContent = cell ? `${cell.character_name} · ${coordinates(cell.row, cell.column)}` : TEXT.noSelection;
   const live = api.mode === "live";
-  const canSubmit = live && !busy && cell && !isProved(cell);
-  document.querySelectorAll(".verdict-button").forEach((button) => { button.disabled = !canSubmit; });
+  for (const [id, { card, actions }] of cardViews) {
+    const cell = cellById(id);
+    const open = live && id === selectedId && !isProved(cell);
+    card.classList.toggle("has-actions", open);
+    actions.setAttribute("aria-label", TEXT.verdictFor(cell.character_name));
+    actions.querySelectorAll("button").forEach((button) => { button.disabled = !open || busy; button.tabIndex = open ? 0 : -1; });
+  }
   $("#load-case").disabled = busy;
   $("#restart-btn").disabled = busy;
   $("#hint-btn").disabled = busy || !live;
@@ -231,6 +259,7 @@ function onCardClick(cell) {
   if (busy) return;
   selectedId = selectedId === cell.id ? null : cell.id;
   pinnedClueId = null;
+  cardViews.get(cell.id).card.focus({ preventScroll: true });
   if (selectedId != null && isProved(cell)) {
     const own = state.revealed_clues.filter((clue) => clue.source_cell_id === cell.id);
     if (!own.length) showToast(TEXT.noClueAttached(cell.character_name));
@@ -301,6 +330,8 @@ function setState(next, { announceComplete = true } = {}) {
   const samePuzzle = state?.puzzle_id === next.puzzle_id;
   const wasComplete = samePuzzle && state.is_complete;
   trackClues(next, { reset: !samePuzzle });
+  const progressed = !samePuzzle || next.cells.some((cell, i) => cell.is_criminal !== state.cells[i]?.is_criminal);
+  if (progressed) pendingHint = null;
   state = next;
   if (!samePuzzle) renderBoard();
   if (selectedId != null && !cellById(selectedId)) selectedId = null;
@@ -313,6 +344,7 @@ function setState(next, { announceComplete = true } = {}) {
 // Làm lại hoặc nạp đề: xoá trạng thái chọn và coi như ván mới.
 function resetBoard(next) {
   selectedId = null; pinnedClueId = null; hoverClueId = null; hoverCellId = null;
+  mistakes = 0; hintsUsed = 0; pendingHint = null;
   state = null;
   setState(next);
 }
@@ -364,19 +396,35 @@ $("#load-case").addEventListener("click", () => run(async () => {
   showToast(TEXT.loadedToast(next));
 }));
 
-$("#hint-btn").addEventListener("click", () => run(async () => {
-  const hint = await api.hint();
-  const checks = TEXT.satChecks(hint.sat_queries.length);
-  if (hint.status === "FOUND") {
-    const cell = cellById(hint.verdict.cell_id);
-    selectedId = hint.verdict.cell_id;
-    pinnedClueId = null;
+// Gợi ý 2 nấc: nấc 1 chỉ ra nhân vật chứng minh được; bấm lần nữa mới nói phán quyết.
+// Cả hai nấc dùng chung một lần gọi API; chỉ nấc 1 được tính vào bộ đếm Hints.
+function useHint() {
+  const waiting = pendingHint && cellById(pendingHint.cellId);
+  if (waiting && !isProved(waiting)) {
+    selectedId = pendingHint.cellId;
     renderSelection();
-    showModal(TEXT.hintFoundTitle, TEXT.hintFoundBody(cellLabel(cell), statusName(hint.verdict.is_criminal), checks));
-  } else if (hint.status === "SOLVED") showModal(TEXT.hintSolvedTitle, TEXT.hintSolvedBody(checks));
-  else if (hint.status === "UNKNOWN") showModal(TEXT.hintUnknownTitle, TEXT.hintUnknownBody(checks));
-  else showModal(TEXT.inconsistentTitle, TEXT.hintInconsistentBody(checks));
-}));
+    showToast(TEXT.hintStep2(cellLabel(waiting), statusName(pendingHint.isCriminal)));
+    return;
+  }
+  run(async () => {
+    const hint = await api.hint();
+    const checks = TEXT.satChecks(hint.sat_queries.length);
+    if (hint.status === "FOUND") {
+      hintsUsed += 1;
+      pendingHint = { cellId: hint.verdict.cell_id, isCriminal: hint.verdict.is_criminal };
+      selectedId = hint.verdict.cell_id;
+      pinnedClueId = null;
+      $("#hint-count").textContent = hintsUsed;
+      renderSelection();
+      cardViews.get(selectedId)?.card.focus({ preventScroll: true });
+      showToast(TEXT.hintStep1(cellLabel(cellById(selectedId))));
+    } else if (hint.status === "SOLVED") showToast(TEXT.hintSolvedBody(checks));
+    else if (hint.status === "UNKNOWN") showToast(TEXT.hintUnknownBody(checks));
+    else showModal(TEXT.inconsistentTitle, TEXT.hintInconsistentBody(checks));
+  });
+}
+
+$("#hint-btn").addEventListener("click", useHint);
 
 $("#autosolve-btn").addEventListener("click", () => run(async () => {
   const result = await api.autoSolve();
@@ -393,10 +441,10 @@ $("#autosolve-btn").addEventListener("click", () => run(async () => {
   showModal(title, `${summary}\n\n${steps.length ? steps.join("\n") : TEXT.solveNone}`);
 }));
 
-$(".verdict-controls").addEventListener("click", (event) => {
-  const button = event.target.closest("[data-status]"); if (!button || selectedId == null) return;
-  const cellId = selectedId;
-  const isCriminal = button.dataset.status === "CRIMINAL";
+// Đoán sai không mở modal: thẻ rung, toast giải thích, bộ đếm Mistakes tăng.
+function submitVerdict(cellId, isCriminal) {
+  const cell = cellById(cellId);
+  if (!cell || isProved(cell) || api.mode !== "live") return;
   run(async () => {
     const result = await api.submitVerdict(cellId, isCriminal);
     const name = cellLabel(cellById(cellId));
@@ -406,22 +454,59 @@ $(".verdict-controls").addEventListener("click", (event) => {
       showToast(TEXT.acceptedToast(name, statusName(isCriminal)));
       return;
     }
+    if (result.outcome === "NOT_PROVABLE" || result.outcome === "CONTRADICTED") {
+      mistakes += 1;
+      const card = cardViews.get(cellId)?.card;
+      if (card) { card.classList.remove("is-wrong"); void card.offsetWidth; card.classList.add("is-wrong"); }
+    }
     setState(result.state);
-    if (result.outcome === "NOT_PROVABLE") showModal(TEXT.notProvableTitle, TEXT.notProvableBody(name));
-    else if (result.outcome === "CONTRADICTED") showModal(TEXT.contradictedTitle, TEXT.contradictedBody(name));
-    else if (result.outcome === "ALREADY_PROVED") showModal(TEXT.alreadyProvedTitle, TEXT.alreadyProvedBody(name));
+    if (result.outcome === "NOT_PROVABLE") showToast(TEXT.notProvableToast(name));
+    else if (result.outcome === "CONTRADICTED") showToast(TEXT.contradictedToast(name));
+    else if (result.outcome === "ALREADY_PROVED") showToast(TEXT.alreadyProvedToast(name));
     else showModal(TEXT.unexpectedOutcome, String(result.outcome));
   });
-});
+}
+
+function moveSelection(dRow, dColumn) {
+  const current = cellById(selectedId);
+  const clamp = (value, max) => Math.min(max, Math.max(0, value));
+  const target = current
+    ? state.cells.find((cell) => cell.row === clamp(current.row + dRow, state.height - 1) && cell.column === clamp(current.column + dColumn, state.width - 1))
+    : state.cells[0];
+  if (!target) return;
+  selectedId = target.id;
+  pinnedClueId = null;
+  renderSelection();
+  cardViews.get(target.id).card.focus();
+}
+
+function showShortcuts() { showModal(TEXT.shortcutsTitle, TEXT.shortcutsBody); }
+$("#shortcuts-btn").addEventListener("click", showShortcuts);
 
 $("#modal-close").addEventListener("click", () => { $("#modal-backdrop").hidden = true; });
 $("#modal-ok").addEventListener("click", () => { $("#modal-backdrop").hidden = true; });
 $("#modal-backdrop").addEventListener("click", (event) => { if (event.target.id === "modal-backdrop") event.currentTarget.hidden = true; });
+const ARROWS = { ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1] };
 window.addEventListener("keydown", (event) => {
-  if (event.key !== "Escape") return;
-  $("#modal-backdrop").hidden = true;
-  selectedId = null; pinnedClueId = null;
-  if (state) renderSelection();
+  const modalOpen = !$("#modal-backdrop").hidden;
+  if (event.key === "Escape") {
+    if (modalOpen) { $("#modal-backdrop").hidden = true; return; }
+    selectedId = null; pinnedClueId = null;
+    if (state) renderSelection();
+    return;
+  }
+  if (modalOpen || !state || event.ctrlKey || event.metaKey || event.altKey) return;
+  if (event.target.closest?.("input, textarea, select, [contenteditable]")) return;
+  if (ARROWS[event.key]) { event.preventDefault(); moveSelection(...ARROWS[event.key]); return; }
+  const key = event.key.toLowerCase();
+  if (key === "?") { event.preventDefault(); showShortcuts(); }
+  else if (key === "h") { event.preventDefault(); if (!$("#hint-btn").disabled) useHint(); }
+  else if (key === "i" || key === "c") {
+    event.preventDefault();
+    const cell = cellById(selectedId);
+    if (!cell || isProved(cell)) showToast(TEXT.selectFirst);
+    else submitVerdict(cell.id, key === "c");
+  }
 });
 
 void loadAvatars();

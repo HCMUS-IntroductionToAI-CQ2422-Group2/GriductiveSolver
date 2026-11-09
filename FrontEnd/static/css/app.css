@@ -121,3 +121,39 @@ body { min-width: 0; }
 .board { gap: 7px; grid-auto-rows: minmax(28px, auto); }
 .page-heading { margin-bottom: 14px; }
 .board-caption { padding: 9px 2px 14px; }
+
+/* ===== PR ②: inline verdicts, shortcuts, mistakes / hints ===== */
+.character-card { font: inherit; color: inherit; text-align: left; cursor: pointer; position: relative; }
+.character-card:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+
+.card-actions { position: absolute; left: 6px; right: 6px; bottom: 6px; display: none; gap: 5px; z-index: 2; }
+.character-card.has-actions .card-actions { display: flex; }
+.character-card.has-actions .card-flag { visibility: hidden; }
+.card-verdict { flex: 1; height: 24px; border-radius: 4px; border: 1px solid; font: 700 9px Arial; letter-spacing: .3px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+.card-verdict.innocent { background: #eef5ef; border-color: #a7c3ab; color: #2f5a3d; }
+.card-verdict.criminal { background: #fbeeee; border-color: #dfaaaa; color: #9b3636; }
+.card-verdict:hover:not(:disabled) { filter: brightness(.96); }
+.card-verdict:disabled { opacity: .55; cursor: default; }
+.card-verdict:focus-visible { outline: 2px solid var(--green); outline-offset: 1px; }
+kbd { font: 8px 'Courier New', monospace; padding: 1px 4px; border: 1px solid #d8d6cd; border-bottom-width: 2px; border-radius: 3px; background: #fffefa; color: #6f746c; }
+.card-verdict kbd { background: #ffffffaa; border-color: currentColor; color: inherit; opacity: .75; }
+
+.character-card.is-hinted { border-color: var(--gold); box-shadow: 0 0 0 3px #c18b4633; }
+
+@keyframes card-wrong { 0%, 100% { transform: none; } 20% { transform: translateX(-4px); } 40% { transform: translateX(4px); } 60% { transform: translateX(-3px); } 80% { transform: translateX(2px); } }
+.character-card.is-wrong { animation: card-wrong .28s ease-in-out; border-color: #dfaaaa; }
+
+.play-stats { display: flex; gap: 6px; font: 9px Arial; color: #8b8e85; }
+.play-stats b { font: 700 9px 'Courier New', monospace; color: #565c53; }
+.play-stats i { font-style: normal; color: #c9c8c0; }
+
+.caption-hint kbd { margin: 0 2px; }
+.link-button { border: 0; background: none; padding: 0; font: inherit; color: var(--green); cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .character-card.is-wrong { animation: none; }
+}
+/* Fit both verdict buttons inside narrow 5 × 5 cards */
+.card-actions { left: 0; right: 0; bottom: 0; padding: 5px; background: #fffefaee; border-top: 1px solid #e7e4dc; }
+.card-verdict { min-width: 0; padding: 0 4px; font-size: 8px; }
+.card-verdict kbd { display: none; }
