@@ -23,6 +23,7 @@
       <div class="progress-block" aria-label="Progress">
         <div class="progress-heading"><span>Proven</span><strong id="progress-label">0 / 0</strong></div>
         <div class="progress-track"><span id="progress-bar"></span></div>
+        <div class="play-stats"><span>Mistakes <b id="mistake-count">0</b></span><i>·</i><span>Hints <b id="hint-count">0</b></span></div>
       </div>
 
       <div class="top-actions">
@@ -42,16 +43,12 @@
 
         <div class="board-toolbar">
           <div class="board-name"><span class="board-symbol">▤</span><div><strong>Character board</strong><small><span id="board-size">3 × 3</span> grid <i>·</i> <span id="known-count">0 revealed</span></small></div></div>
-          <span class="caption-hint">Hover a clue to see who it mentions</span>
+          <span class="caption-hint">Select a character, then press <kbd>I</kbd> Innocent or <kbd>C</kbd> Criminal · <button type="button" class="link-button" id="shortcuts-btn">Shortcuts <kbd>?</kbd></button></span>
         </div>
 
         <div class="board-wrap"><div class="board" id="board" aria-label="Character grid"></div></div>
         <div class="board-caption"><span><i class="legend-dot face-down"></i> Unrevealed</span><span><i class="legend-dot face-up"></i> Proven</span><span><i class="legend-dot mentioned"></i> Mentioned by clue</span></div>
 
-        <section class="verdict-panel" aria-label="Submit a verdict">
-          <div class="verdict-copy"><span class="verdict-icon">⌖</span><div><strong>Ready to make a call?</strong><p>Select an unrevealed character, then submit your verdict.</p></div></div>
-          <div class="verdict-controls"><span class="selected-character" id="selected-label">No character selected</span><button class="verdict-button innocent" data-status="INNOCENT" disabled>Innocent</button><button class="verdict-button criminal" data-status="CRIMINAL" disabled>Criminal</button></div>
-        </section>
         <div class="toast" id="toast" role="status" aria-live="polite"></div>
       </section>
 
