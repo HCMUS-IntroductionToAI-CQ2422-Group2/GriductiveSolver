@@ -31,18 +31,22 @@ const TEXT = {
   acceptedToast: (name, status) => `Verdict accepted: ${name} is ${status.toLowerCase()}.`,
   noClueAttached: (name) => `${name} has no clue attached.`,
   caseClosedTitle: "Case closed",
-  caseClosedBody: "Every character has a proven verdict. Well reasoned!",
+  caseClosedBody: "Every character has a proven verdict, without guessing.",
+  caseClosedAuto: "Solved by Auto solve — every verdict was forced by the clues.",
+  playbackLabel: (step, total) => `Auto solve · step ${step} / ${total}`,
+  pause: "Pause",
+  resume: "Resume",
+  retrying: "Trying to reach the backend…",
+  reconnected: "Connected to the backend.",
+  stillOffline: "Still offline. Is the backend running?",
   hintSolvedBody: (checks) => `Nothing left to prove: every character already has a verdict. (${checks})`,
   hintUnknownBody: (checks) => `No forced verdict: the public clues do not force any remaining character yet. (${checks})`,
   inconsistentTitle: "Inconsistent clues",
   hintInconsistentBody: (checks) => `The public clues contradict each other — this puzzle has no solution. (${checks})`,
   satChecks: (n) => `${n} SAT check${n === 1 ? "" : "s"}`,
   solveTitles: { SOLVED: "Solved", STUCK: "Stuck", INCONSISTENT: "Inconsistent clues" },
-  solveStuck: "No further verdict is forced by the public clues.",
   solveInconsistent: "The public clues contradict each other.",
-  solveDone: "Every verdict was proven without guessing.",
-  solveNone: "No new verdicts were made.",
-  opensClues: (ids) => ` → opens clue ${ids.map((id) => `#${id}`).join(", ")}`,
+  solveStuckToast: (n) => `Auto solve stopped after ${n} step${n === 1 ? "" : "s"}: no further verdict is forced by the public clues.`,
   notProvableToast: (name) => `Not provable yet: the clues don't force a verdict for ${name}. +1 mistake.`,
   contradictedToast: (name) => `Contradicted: the clues force the opposite status for ${name}. +1 mistake.`,
   alreadyProvedToast: (name) => `${name} already has a proven verdict.`,
@@ -68,6 +72,11 @@ let busy = false;
 let mistakes = 0;          // phán quyết bị từ chối (NOT_PROVABLE / CONTRADICTED) trong ván này
 let hintsUsed = 0;         // số lần xin gợi ý trong ván này (không tính là lỗi)
 let pendingHint = null;    // gợi ý nấc 1 đang chờ: { cellId, isCriminal }
+let solvedByAuto = false;  // ván thắng nhờ Auto solve
+let playback = null;       // phát lại Auto solve đang chạy: { paused, skip }
+let playbackClueIds = new Set(); // manh mối solver đang dùng ở bước hiện tại
+let playbackCellId = null;       // nhân vật solver đang kết luận ở bước hiện tại
+const PLAYBACK_STEP_MS = 700;
 let toastTimer;
 const cardViews = new Map();
 let availableAvatars = new Set();
@@ -241,6 +250,7 @@ function renderHighlights() {
   for (const [id, { card }] of cardViews) {
     card.classList.toggle("is-highlighted", mentioned.has(id));
     card.classList.toggle("is-clue-source", clue?.source_cell_id === id);
+    card.classList.toggle("is-playback", id === playbackCellId);
   }
 
   const cellId = clue ? null : activeCellId();
@@ -248,6 +258,7 @@ function renderHighlights() {
     const id = Number(item.dataset.clueId);
     const data = clueById(id);
     item.classList.toggle("is-active", id === clue?.id);
+    item.classList.toggle("is-solver-active", playbackClueIds.has(id));
     item.classList.toggle("is-pinned", id === pinnedClueId);
     item.classList.toggle("is-own", cellId != null && data?.source_cell_id === cellId);
     item.classList.toggle("is-mentioning", cellId != null && (data?.referenced_cell_ids ?? []).includes(cellId));
@@ -338,13 +349,25 @@ function setState(next, { announceComplete = true } = {}) {
   if (!clueById(pinnedClueId)) pinnedClueId = null;
   if (!clueById(hoverClueId)) hoverClueId = null;
   render();
-  if (announceComplete && state.is_complete && !wasComplete) showModal(TEXT.caseClosedTitle, TEXT.caseClosedBody);
+  renderWin(announceComplete && state.is_complete && !wasComplete);
+}
+
+// Kết quả khi phá xong vụ án hiện ngay trên trang, không chặn bảng.
+function renderWin(justWon) {
+  const panel = $("#win-panel");
+  panel.hidden = !state.is_complete;
+  if (!state.is_complete) return;
+  $("#win-title").textContent = TEXT.caseClosedTitle;
+  $("#win-body").textContent = solvedByAuto ? TEXT.caseClosedAuto : TEXT.caseClosedBody;
+  $("#win-mistakes").textContent = mistakes;
+  $("#win-hints").textContent = hintsUsed;
+  if (justWon) panel.scrollIntoView({ block: "nearest", behavior: "smooth" });
 }
 
 // Làm lại hoặc nạp đề: xoá trạng thái chọn và coi như ván mới.
 function resetBoard(next) {
   selectedId = null; pinnedClueId = null; hoverClueId = null; hoverCellId = null;
-  mistakes = 0; hintsUsed = 0; pendingHint = null;
+  mistakes = 0; hintsUsed = 0; pendingHint = null; solvedByAuto = false;
   state = null;
   setState(next);
 }
@@ -354,6 +377,7 @@ function setConnection(mode) {
   $("#connection-label").textContent = live ? TEXT.live : TEXT.mock;
   $(".connection-pill").classList.toggle("is-live", live);
   $("#footer-mode").textContent = live ? TEXT.footerLive : TEXT.footerMock;
+  $("#offline-banner").hidden = live;
 }
 
 // Chạy một action gọi API: chặn bấm trùng và hiện lỗi thống nhất.
@@ -426,20 +450,87 @@ function useHint() {
 
 $("#hint-btn").addEventListener("click", useHint);
 
+// Auto solve: backend giải xong trong một lần gọi; UI phát lại `trace` từng bước trên bảng.
+// Mỗi bước: sáng các manh mối solver dùng (active_clue_ids) → chứng minh nhân vật → hiện manh mối mới mở.
 $("#autosolve-btn").addEventListener("click", () => run(async () => {
   const result = await api.autoSolve();
-  const before = state;
-  const steps = result.trace.map((step) => {
-    const cell = before.cells.find((item) => item.id === step.verdict.cell_id);
-    const opened = step.revealed_clue_ids.length ? TEXT.opensClues(step.revealed_clue_ids) : "";
-    return `${step.step}. ${cellLabel(cell)}: ${statusName(step.verdict.is_criminal)}${opened}`;
-  });
-  selectedId = null;
-  setState(result.state, { announceComplete: false });
-  const title = TEXT.solveTitles[result.status] ?? result.status;
-  const summary = result.status === "STUCK" ? TEXT.solveStuck : result.status === "INCONSISTENT" ? TEXT.solveInconsistent : TEXT.solveDone;
-  showModal(title, `${summary}\n\n${steps.length ? steps.join("\n") : TEXT.solveNone}`);
+  await playTrace(state, result);
+  if (result.status === "SOLVED") return;
+  if (result.status === "STUCK") showToast(TEXT.solveStuckToast(result.trace.length));
+  else showModal(TEXT.solveTitles[result.status] ?? result.status, TEXT.solveInconsistent);
 }));
+
+async function playTrace(before, result) {
+  const finalClues = new Map(result.state.revealed_clues.map((clue) => [clue.id, clue]));
+  let frame = structuredClone(before);
+  selectedId = null; pinnedClueId = null; hoverClueId = null; hoverCellId = null;
+  playback = { paused: false, skip: false };
+  showPlayback(true);
+  try {
+    for (const [index, step] of result.trace.entries()) {
+      if (playback.skip) break;
+      $("#playback-label").textContent = TEXT.playbackLabel(index + 1, result.trace.length);
+      playbackClueIds = new Set(step.active_clue_ids);
+      playbackCellId = step.verdict.cell_id;
+      renderHighlights();
+      if (!await playbackWait(PLAYBACK_STEP_MS / 2)) break;
+
+      frame = structuredClone(frame);
+      const cell = frame.cells.find((item) => item.id === step.verdict.cell_id);
+      if (cell) cell.is_criminal = step.verdict.is_criminal;
+      for (const id of step.revealed_clue_ids) {
+        if (finalClues.has(id) && !frame.revealed_clues.some((clue) => clue.id === id)) frame.revealed_clues.push(finalClues.get(id));
+      }
+      setState(frame, { announceComplete: false });
+      if (!await playbackWait(PLAYBACK_STEP_MS / 2)) break;
+    }
+  } finally {
+    playbackClueIds = new Set(); playbackCellId = null; playback = null;
+    showPlayback(false);
+    if (result.status === "SOLVED") solvedByAuto = true;
+    setState(result.state);
+    // Người chơi vừa xem các manh mối mở ra trong lúc phát lại, không cần gắn nhãn NEW nữa.
+    newClueIds = new Set();
+    renderClueFeed(); renderHighlights();
+  }
+}
+
+// Chờ ms mili-giây (không tính lúc tạm dừng). Trả về false nếu người chơi bấm Skip.
+async function playbackWait(ms) {
+  let left = ms;
+  while (left > 0 || playback?.paused) {
+    if (!playback || playback.skip) return false;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    if (!playback?.paused) left -= 50;
+  }
+  return !playback?.skip;
+}
+
+function showPlayback(on) {
+  $("#playback-bar").hidden = !on;
+  $(".board-toolbar .caption-hint").hidden = on;
+  $("#playback-pause").textContent = TEXT.pause;
+}
+
+$("#playback-pause").addEventListener("click", () => {
+  if (!playback) return;
+  playback.paused = !playback.paused;
+  $("#playback-pause").textContent = playback.paused ? TEXT.resume : TEXT.pause;
+});
+$("#playback-skip").addEventListener("click", () => { if (playback) playback.skip = true; });
+
+$("#win-again").addEventListener("click", () => $("#restart-btn").click());
+$("#win-next").addEventListener("click", () => $("#load-case").click());
+
+$("#retry-btn").addEventListener("click", async () => {
+  if (busy) return;
+  busy = true; renderControls();
+  $("#retry-btn").disabled = true;
+  showToast(TEXT.retrying);
+  try { await connect(); }
+  finally { busy = false; $("#retry-btn").disabled = false; renderControls(); }
+  showToast(api.mode === "live" ? TEXT.reconnected : TEXT.stillOffline);
+});
 
 // Đoán sai không mở modal: thẻ rung, toast giải thích, bộ đếm Mistakes tăng.
 function submitVerdict(cellId, isCriminal) {

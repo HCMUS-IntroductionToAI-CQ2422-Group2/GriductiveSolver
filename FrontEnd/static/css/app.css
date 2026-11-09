@@ -157,3 +157,32 @@ kbd { font: 8px 'Courier New', monospace; padding: 1px 4px; border: 1px solid #d
 .card-actions { left: 0; right: 0; bottom: 0; padding: 5px; background: #fffefaee; border-top: 1px solid #e7e4dc; }
 .card-verdict { min-width: 0; padding: 0 4px; font-size: 8px; }
 .card-verdict kbd { display: none; }
+
+/* ===== PR ③: Auto solve playback, win panel, offline banner ===== */
+.offline-banner { display: flex; align-items: center; gap: 12px; padding: 10px 26px; background: #fbf3e6; border-bottom: 1px solid #ecd9b8; color: #6d5530; }
+.offline-banner[hidden], .win-panel[hidden], .playback-bar[hidden], .caption-hint[hidden] { display: none; }
+.offline-banner p { margin: 0; font-size: 10px; line-height: 1.5; }
+.offline-banner strong { font-weight: 700; }
+.offline-banner .button { margin-left: auto; flex: none; }
+.offline-icon { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; background: var(--gold); color: #fff; font: 700 11px Arial; flex: none; }
+
+.win-panel { display: flex; align-items: center; gap: 16px; padding: 14px 16px; margin-bottom: 14px; background: #f1f6f1; border: 1px solid #c9dccb; border-radius: 9px; box-shadow: var(--shadow); }
+.win-mark { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: var(--green); color: #fff; font-size: 16px; flex: none; }
+.win-copy strong { font: 500 17px Georgia, serif; }
+.win-copy p { margin: 3px 0 0; font-size: 10px; color: #667064; }
+.win-stats { display: flex; gap: 16px; margin-left: auto; }
+.win-stats span { display: grid; justify-items: center; font: 8px Arial; color: #7b8378; letter-spacing: .4px; text-transform: uppercase; }
+.win-stats b { font: 500 18px Georgia, serif; color: var(--ink); }
+.win-actions { display: flex; gap: 8px; }
+
+.playback-bar { display: flex; align-items: center; gap: 8px; font: 9px 'Courier New', monospace; color: var(--green); }
+.playback-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--gold); }
+.character-card.is-playback { border-color: var(--gold); box-shadow: 0 0 0 3px #c18b4640; }
+.clue-card.is-solver-active { border-color: var(--gold); border-left-color: var(--gold); background: #fbf6ec; box-shadow: 0 4px 14px #c18b4626; }
+
+@media (max-width: 900px) {
+  .win-panel { flex-wrap: wrap; }
+  .win-stats { margin-left: 0; }
+  .win-actions { width: 100%; justify-content: flex-end; }
+  .offline-banner { flex-wrap: wrap; padding: 10px 16px; }
+}

@@ -9,8 +9,8 @@ Mục tiêu: người chơi luôn nhìn thấy manh mối, đưa ra phán quyế
 | PR | Nội dung | Trạng thái |
 | --- | --- | --- |
 | ① Bố cục + panel manh mối | Bỏ sidebar; thanh trên cùng gồm case + Load a case, tiến độ, Hint / Auto solve / Restart; bảng ~65% + panel clue luôn mở ~35%; clue mới nổi lên đầu với nhãn NEW; rê chuột clue ↔ nhân vật để highlight hai chiều; bỏ nút Inspect clue; gom chữ UI vào `TEXT` trong `app.js` | Đã merge (#10) |
-| ② Chơi mượt | Phán quyết Innocent/Criminal ngay trên thẻ (bỏ verdict panel); phím tắt ←↑→↓, `I`, `C`, `H`, `Esc`, `?`; đoán sai → thẻ rung + toast thay cho modal; bộ đếm "Mistakes · Hints" (reset khi Restart / Load a case); Hint 2 nấc (sáng ô trước, nói phán quyết sau) | Đang review |
-| ③ Trình diễn | Phát lại Auto solve từng bước trên bảng (~700ms/bước, khoá bảng, Pause/Skip); kết quả khi thắng hiện ngay trên trang (Mistakes, Hints, Play again, Next case); dải thông báo offline + Retry connection | Chưa làm |
+| ② Chơi mượt | Phán quyết Innocent/Criminal ngay trên thẻ (bỏ verdict panel); phím tắt ←↑→↓, `I`, `C`, `H`, `Esc`, `?`; đoán sai → thẻ rung + toast thay cho modal; bộ đếm "Mistakes · Hints" (reset khi Restart / Load a case); Hint 2 nấc (sáng ô trước, nói phán quyết sau) | Đang review (nhánh `feat/ui-inline-verdicts`) |
+| ③ Trình diễn | Phát lại Auto solve từng bước trên bảng (~700ms/bước, khoá bảng, Pause/Skip); kết quả khi thắng hiện ngay trên trang (Mistakes, Hints, Play again, Next case); dải thông báo offline + Retry connection | Đang review (nối tiếp ②) |
 
 Chỉ 3 hiệu ứng chuyển động (chuyển màu khi chứng minh, rung khi sai, clue trượt vào), tất cả tắt khi người dùng bật `prefers-reduced-motion`.
 
