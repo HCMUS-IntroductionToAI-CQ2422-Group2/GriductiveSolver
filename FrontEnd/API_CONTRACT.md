@@ -38,17 +38,16 @@ Lỗi HTTP có dạng `{ "detail": ... }`; `api.js` ném `ApiError(status, detai
 `api.js` mặc định gọi **cùng origin** (`/api/...`). Có thể ghi đè bằng `?api=http://localhost:8000`
 hoặc đặt `window.GRIDUCTIVE_API_BASE` trước khi load `app.js`.
 
-Hiện `main.py` **chưa serve FrontEnd và chưa bật CORS**, nên cần một trong hai thay đổi phía API (phần của người phụ trách `BackEnd/APIs/`):
+FastAPI phục vụ frontend tại `/app/` và API tại `/api/` trên cùng origin.
+Chạy từ thư mục gốc dự án:
 
-1. Serve FrontEnd cùng origin (khuyến nghị) — thêm vào cuối `main.py`:
-   ```python
-   from pathlib import Path
-   from fastapi.staticfiles import StaticFiles
-   app.mount("/app", StaticFiles(directory=Path(__file__).resolve().parents[2] / "FrontEnd", html=True), name="frontend")
-   ```
-   Chạy `uvicorn BackEnd.APIs.main:app --reload` rồi mở `http://localhost:8000/app/`.
-2. Hoặc bật CORS (`fastapi.middleware.cors.CORSMiddleware`) và serve FrontEnd riêng
-   (`python -m http.server 5500` trong `FrontEnd/`), mở `http://localhost:5500/?api=http://localhost:8000`.
+```powershell
+python -m pip install -r requirement.txt
+python -m uvicorn BackEnd.APIs.main:app --reload
+```
+
+Mở [giao diện chơi](http://127.0.0.1:8000/app/) và kiểm tra nhãn **LIVE API**.
+Tài liệu Swagger ở [đường dẫn /docs](http://127.0.0.1:8000/docs).
 
 Nếu không gọi được backend, UI tự chuyển sang `mock/state.js` (chế độ "OFFLINE · MOCK", chỉ xem; verdict/hint/auto-solve bị khoá).
 `mock/state.js` dùng cùng shape `PublicStateResponse` và cùng dữ liệu với `make_demo_puzzle()`.

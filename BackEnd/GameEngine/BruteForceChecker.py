@@ -16,7 +16,10 @@ from BackEnd.GameEngine.GameObject.constraints import (
     Constraint,
     Count,
     CountConstraint,
+    Different,
+    Fact,
     ParityConstraint,
+    Same,
 )
 from BackEnd.GameEngine.GameObject.objects import Board, Verdict
 from BackEnd.GameEngine.GameState import PublicState
@@ -108,6 +111,17 @@ def evaluate_constraint(
     Returns True/False when the result is already determined regardless of
     the unassigned cells, and None when it still depends on them.
     """
+    if isinstance(constraint, Fact):
+        status = assignment.get(constraint.target)
+        return None if status is None else status == constraint.is_criminal
+
+    if isinstance(constraint, (Same, Different)):
+        left = assignment.get(constraint.cell_id_1)
+        right = assignment.get(constraint.cell_id_2)
+        if left is None or right is None:
+            return None
+        return (left == right) if isinstance(constraint, Same) else (left != right)
+
     if isinstance(constraint, CountConstraint):
         left = _count_range(constraint.left, assignment)
         if isinstance(constraint.right, Count):

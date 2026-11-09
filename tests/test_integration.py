@@ -21,6 +21,7 @@ Intended deduction:
 
 import pytest
 
+from BackEnd.APIs.schemas import to_public_json
 from BackEnd.GameEngine.BruteForceChecker import BruteForceChecker
 from BackEnd.GameEngine.GameEngine import GameEngine, SubmitOutcome
 from BackEnd.GameEngine.GameObject.constraints import (
@@ -29,7 +30,10 @@ from BackEnd.GameEngine.GameObject.constraints import (
     ConnectedConstraint,
     Count,
     CountConstraint,
+    Different,
+    Fact,
     ParityConstraint,
+    Same,
 )
 from BackEnd.GameEngine.GameObject.objects import PuzzleDefinition, Verdict
 from BackEnd.GameEngine.validation import validate_puzzle
@@ -131,3 +135,39 @@ def test_restart_mid_game(engine):
     for cell_id, status in PLAY_ORDER:
         assert engine.submit_verdict(cell_id, status).outcome is SubmitOutcome.ACCEPTED
     assert engine.get_public_state().is_complete
+
+
+def test_fact_same_and_different_unlock_and_serialize():
+    solution = (
+        Verdict(0, False), Verdict(1, False), Verdict(2, True), Verdict(3, True)
+    )
+    puzzle = PuzzleDefinition(
+        id="core-clues",
+        board=make_board(2, 2),
+        clues=(
+            make_clue(1, Fact(0, False)),
+            make_clue(2, Same(0, 1), source_cell_id=0),
+            make_clue(3, Different(1, 2), source_cell_id=1),
+            make_clue(4, Same(2, 3), source_cell_id=2),
+        ),
+        solution=solution,
+        initial_verdicts=(),
+    )
+    checker = BruteForceChecker()
+    validate_puzzle(puzzle, checker)
+    engine = GameEngine(puzzle, checker)
+
+    initial = to_public_json(engine.get_public_state())
+    assert [
+        clue["referenced_cell_ids"] for clue in initial["revealed_clues"]
+    ] == [[0]]
+    assert engine.submit_verdict(1, False).outcome is SubmitOutcome.NOT_PROVABLE
+    for verdict in solution:
+        result = engine.submit_verdict(verdict.cell_id, verdict.is_criminal)
+        assert result.outcome is SubmitOutcome.ACCEPTED
+
+    final = to_public_json(engine.get_public_state())
+    assert [
+        clue["referenced_cell_ids"] for clue in final["revealed_clues"]
+    ] == [[0], [0, 1], [1, 2], [2, 3]]
+    assert final["is_complete"] is True

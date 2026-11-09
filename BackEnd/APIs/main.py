@@ -1,9 +1,11 @@
+from pathlib import Path
 from threading import Lock
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import RedirectResponse
+from fastapi.staticfiles import StaticFiles
 
-from BackEnd.APIs.demo import DemoConstraintChecker, DemoGameEngine, make_demo_puzzle
+from BackEnd.APIs.demo import make_demo_puzzle
 from BackEnd.APIs.schemas import (
     AutoSolveResponse,
     DeductionStep,
@@ -15,11 +17,11 @@ from BackEnd.APIs.schemas import (
     VerdictResponse,
     to_public_json,
 )
+from BackEnd.GameEngine.BruteForceChecker import BruteForceChecker
 from BackEnd.GameEngine.ConstraintChecker import ConstraintChecker
 from BackEnd.GameEngine.GameEngine import GameEngine, SubmitOutcome
 from BackEnd.GameEngine.GameObject.objects import Verdict
 from BackEnd.GameEngine.GameState import PublicState
-from BackEnd.GameEngine.BruteForceChecker import BruteForceChecker
 
 app = FastAPI(title="Griductive API")
 
@@ -65,8 +67,8 @@ def find_hint(state: PublicState, constraint_checker: ConstraintChecker) -> Hint
 
 
 @app.get("/", include_in_schema=False)
-def open_docs():
-    return RedirectResponse("/docs")
+def open_frontend():
+    return RedirectResponse("/app/")
 
 
 @app.get("/api/puzzles")
@@ -150,3 +152,15 @@ def auto_solve():
                 ],
             ))
             state = result.public_state
+
+
+frontend_dir = Path(__file__).resolve().parents[2] / "FrontEnd"
+
+
+@app.get("/app/avatars.json", include_in_schema=False)
+def list_avatars() -> list[str]:
+    avatars_dir = frontend_dir / "static" / "avatars"
+    return sorted(file.name for file in avatars_dir.glob("*.svg") if file.is_file())
+
+
+app.mount("/app", StaticFiles(directory=frontend_dir, html=True), name="frontend")
