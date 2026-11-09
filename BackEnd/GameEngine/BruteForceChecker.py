@@ -6,16 +6,19 @@ as soon as any revealed clue is definitely violated.
 
 from __future__ import annotations
 
-from collections import deque
-from typing import Mapping
+from collections import Counter, deque
+from typing import Iterator, Mapping
 
 from BackEnd.GameEngine.GameObject.constraints import (
     AllOf,
+    AnyOf,
     Comparison,
     ConnectedConstraint,
     Constraint,
     Count,
     CountConstraint,
+    Fact,
+    Not,
     ParityConstraint,
 )
 from BackEnd.GameEngine.GameObject.objects import Board, Verdict
@@ -98,6 +101,43 @@ def _is_connected(cell_ids: set[int], positions: Positions) -> bool:
     return len(seen) == len(cell_ids)
 
 
+def referenced_cells(constraint: Constraint) -> Iterator[int]:
+    """Yield every cell id a constraint reads (for ordering heuristics)."""
+    if isinstance(constraint, Fact):
+        yield constraint.target
+    elif isinstance(constraint, CountConstraint):
+        yield from constraint.left.targets
+        if isinstance(constraint.right, Count):
+            yield from constraint.right.targets
+    elif isinstance(constraint, ParityConstraint):
+        yield from constraint.count.targets
+    elif isinstance(constraint, ConnectedConstraint):
+        yield from constraint.targets
+    elif isinstance(constraint, (AllOf, AnyOf)):
+        for child in constraint.constraints:
+            yield from referenced_cells(child)
+    elif isinstance(constraint, Not):
+        yield from referenced_cells(constraint.constraint)
+
+
+def order_free_cells_by_degree(
+    free_cells: list[int],
+    constraints: list[Constraint],
+) -> list[int]:
+    """Visit cells referenced by the most constraints first.
+
+    `ParityConstraint`/`ConnectedConstraint` only resolve once every one of
+    their targets is assigned, so filling in cells outside any tight
+    constraint first wastes whole branches before a contradiction can even
+    be detected. Degree is computed once per search (the constraint set is
+    fixed for the call), not re-evaluated at every node.
+    """
+    degree = Counter()
+    for constraint in constraints:
+        degree.update(referenced_cells(constraint))
+    return sorted(free_cells, key=lambda cid: degree[cid], reverse=True)
+
+
 def evaluate_constraint(
     constraint: Constraint,
     assignment: Assignment,
@@ -108,6 +148,12 @@ def evaluate_constraint(
     Returns True/False when the result is already determined regardless of
     the unassigned cells, and None when it still depends on them.
     """
+    if isinstance(constraint, Fact):
+        value = assignment.get(constraint.target)
+        if value is None:
+            return None
+        return value == constraint.is_criminal
+
     if isinstance(constraint, CountConstraint):
         left = _count_range(constraint.left, assignment)
         if isinstance(constraint.right, Count):
@@ -144,6 +190,20 @@ def evaluate_constraint(
                 undecided = True
         return None if undecided else True
 
+    if isinstance(constraint, AnyOf):
+        undecided = False
+        for child in constraint.constraints:
+            result = evaluate_constraint(child, assignment, positions)
+            if result is True:
+                return True
+            if result is None:
+                undecided = True
+        return None if undecided else False
+
+    if isinstance(constraint, Not):
+        result = evaluate_constraint(constraint.constraint, assignment, positions)
+        return None if result is None else not result
+
     raise TypeError(f"Unsupported constraint type: {type(constraint).__name__}")
 
 
@@ -164,7 +224,9 @@ class BruteForceChecker:
 
         positions = cell_positions(public_state.board)
         constraints = [clue.constraint for clue in public_state.revealed_clues]
-        free_cells = [cid for cid in positions if cid not in assignment]
+        free_cells = order_free_cells_by_degree(
+            [cid for cid in positions if cid not in assignment], constraints
+        )
         return self._search(assignment, free_cells, 0, constraints, positions)
 
     def _search(

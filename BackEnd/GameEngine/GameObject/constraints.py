@@ -46,11 +46,6 @@ class AllOf:
     constraints: tuple[Constraint, ...]
 
 
-Constraint = (
-    Fact | CountConstraint | ParityConstraint | ConnectedConstraint | 
-    AllOf | AnyOf | Not
-)
-
 @dataclass(frozen=True)
 class Fact:
     """Clue that directly determines the status of a cell (e.g., a face-up card)."""

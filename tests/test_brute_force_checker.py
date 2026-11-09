@@ -2,13 +2,18 @@ from BackEnd.GameEngine.BruteForceChecker import (
     BruteForceChecker,
     cell_positions,
     evaluate_constraint,
+    order_free_cells_by_degree,
+    referenced_cells,
 )
 from BackEnd.GameEngine.GameObject.constraints import (
     AllOf,
+    AnyOf,
     Comparison,
     ConnectedConstraint,
     Count,
     CountConstraint,
+    Fact,
+    Not,
     ParityConstraint,
 )
 from BackEnd.GameEngine.GameObject.objects import Verdict
@@ -90,6 +95,40 @@ def test_connected_empty_respects_allow_empty():
     assert ev(ConnectedConstraint(ALL, True, allow_empty=True), none_criminal) is True
 
 
+# ---- Fact -------------------------------------------------------------------
+
+def test_fact_criminal():
+    f = Fact(0, is_criminal=True)
+    assert ev(f, {0: True}) is True
+    assert ev(f, {0: False}) is False
+    assert ev(f, {}) is None
+
+
+def test_fact_innocent():
+    f = Fact(0, is_criminal=False)
+    assert ev(f, {0: False}) is True
+    assert ev(f, {0: True}) is False
+
+
+# ---- AnyOf ------------------------------------------------------------------
+
+def test_any_of():
+    a = AnyOf((Fact(0, True), Fact(1, True)))
+    assert ev(a, {0: True}) is True  # short-circuits before cell 1 is known
+    assert ev(a, {0: False, 1: True}) is True
+    assert ev(a, {0: False, 1: False}) is False
+    assert ev(a, {0: False}) is None  # still waiting on cell 1
+
+
+# ---- Not ----------------------------------------------------------------------
+
+def test_not():
+    n = Not(Fact(0, True))
+    assert ev(n, {0: True}) is False
+    assert ev(n, {0: False}) is True
+    assert ev(n, {}) is None
+
+
 # ---- AllOf ----------------------------------------------------------------
 
 def test_all_of():
@@ -100,6 +139,31 @@ def test_all_of():
     assert ev(c, {0: True, 1: False, 2: False, 3: True}) is False
     assert ev(c, {0: False, 1: False, 2: False}) is False  # count fails early
     assert ev(c, {0: True}) is None
+
+
+# ---- degree-ordering heuristic ---------------------------------------------
+
+def test_referenced_cells_covers_all_constraint_kinds():
+    nested = AllOf((
+        CountConstraint(Count((0, 1)), Comparison.EQ, Count((2,))),
+        AnyOf((Fact(3, True), Not(ParityConstraint(Count((1,)), is_odd=True)))),
+        ConnectedConstraint((0, 2), is_criminal=True),
+    ))
+    assert sorted(referenced_cells(nested)) == [0, 0, 1, 1, 2, 2, 3]
+
+
+def test_order_by_degree_prioritizes_most_referenced_cells():
+    # Cell 0 is read by both constraints, cell 1 by one, cells 2 and 3 by none.
+    constraints = [
+        CountConstraint(Count((0, 1)), Comparison.EQ, 1),
+        Fact(0, True),
+    ]
+    ordered = order_free_cells_by_degree([3, 2, 1, 0], constraints)
+    assert ordered == [0, 1, 3, 2]  # ties keep their original relative order
+
+
+def test_order_by_degree_is_a_no_op_without_constraints():
+    assert order_free_cells_by_degree([3, 2, 1, 0], []) == [3, 2, 1, 0]
 
 
 # ---- has_solution ---------------------------------------------------------
@@ -143,6 +207,19 @@ def test_has_solution_contradictory_clues():
     none = make_clue(3, CountConstraint(Count(ALL), Comparison.EQ, 0))
     state = make_public_state(BOARD, clues=[EXACTLY_ONE, none])
     assert CHECKER.has_solution(state) is False
+
+
+def test_has_solution_with_fact_and_any_of():
+    # Clue: cell 0 or cell 1 is the criminal.
+    either = make_clue(5, AnyOf((Fact(0, True), Fact(1, True))))
+    state = make_public_state(BOARD, clues=[either])
+    assert CHECKER.has_solution(state) is True
+    assert CHECKER.has_solution(state, Verdict(0, False)) is True  # 1 can be it
+
+    # Once 0 is known innocent, 1 is forced to be the criminal.
+    narrowed = make_public_state(BOARD, clues=[either], proved={0: False})
+    assert CHECKER.has_solution(narrowed, Verdict(1, False)) is False
+    assert CHECKER.has_solution(narrowed, Verdict(1, True)) is True
 
 
 def test_has_solution_ignores_unrevealed_information():

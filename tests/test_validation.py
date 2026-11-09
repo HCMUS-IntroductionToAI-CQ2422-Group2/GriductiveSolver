@@ -5,9 +5,12 @@ import pytest
 from BackEnd.GameEngine.BruteForceChecker import BruteForceChecker
 from BackEnd.GameEngine.GameObject.constraints import (
     AllOf,
+    AnyOf,
     Comparison,
     Count,
     CountConstraint,
+    Fact,
+    Not,
     ParityConstraint,
 )
 from BackEnd.GameEngine.GameObject.objects import Board, Cell, PuzzleDefinition, Verdict
@@ -60,6 +63,23 @@ def test_duplicate_clue_ids():
     assert_invalid(with_(clues=(C1, make_clue(1, C2.constraint))), "Duplicate clue ids")
 
 
+def test_row_width_mismatch():
+    cell0 = Cell(0, (0, 0), "A", "x")
+    cell1 = Cell(1, (0, 1), "B", "x")
+    cell2 = Cell(2, (1, 0), "C", "x")
+    bad_board = Board(((cell0, cell1), (cell2,)))
+    assert_invalid(with_(board=bad_board), "Row 1 has 1 cells")
+
+
+def test_cell_coordinates_do_not_match_position():
+    cell0 = Cell(0, (0, 0), "A", "x")
+    cell1 = Cell(1, (1, 1), "B", "x")  # should be (0, 1)
+    cell2 = Cell(2, (1, 0), "C", "x")
+    cell3 = Cell(3, (1, 1), "D", "x")
+    bad_board = Board(((cell0, cell1), (cell2, cell3)))
+    assert_invalid(with_(board=bad_board), r"coordinates \(1, 1\), expected \(0, 1\)")
+
+
 def test_unknown_source_cell():
     bad = make_clue(9, C3.constraint, source_cell_id=42)
     assert_invalid(with_(clues=(C1, C2, bad)), "unknown source cell 42")
@@ -71,6 +91,51 @@ def test_unknown_target_inside_nested_constraint():
         ParityConstraint(Count((0, 77)), is_odd=True),
     ))
     assert_invalid(with_(clues=(make_clue(9, nested),)), r"unknown cells \[77\]")
+
+
+def test_fact_unknown_target():
+    bad = make_clue(9, Fact(99, True))
+    assert_invalid(with_(clues=(bad,)), r"unknown cells \[99\]")
+
+
+def test_any_of_unknown_target():
+    bad = make_clue(9, AnyOf((Fact(0, True), Fact(99, True))))
+    assert_invalid(with_(clues=(bad,)), r"unknown cells \[99\]")
+
+
+def test_not_unknown_target():
+    bad = make_clue(9, Not(Fact(99, True)))
+    assert_invalid(with_(clues=(bad,)), r"unknown cells \[99\]")
+
+
+def test_count_duplicate_targets_inside_any_of():
+    dup = make_clue(9, AnyOf((CountConstraint(Count((0, 0)), Comparison.EQ, 1), Fact(1, True))))
+    assert_invalid(with_(clues=(dup,)), r"duplicate cell ids in a Count: \[0\]")
+
+
+def test_count_duplicate_targets_inside_not():
+    dup = make_clue(9, Not(CountConstraint(Count((0, 0)), Comparison.EQ, 1)))
+    assert_invalid(with_(clues=(dup,)), r"duplicate cell ids in a Count: \[0\]")
+
+
+def test_count_duplicate_targets():
+    dup = make_clue(9, CountConstraint(Count((0, 0, 1)), Comparison.EQ, 1))
+    assert_invalid(with_(clues=(dup,)), r"duplicate cell ids in a Count: \[0\]")
+
+
+def test_count_duplicate_targets_in_parity():
+    dup = make_clue(9, ParityConstraint(Count((2, 2, 3)), is_odd=True))
+    assert_invalid(with_(clues=(dup,)), r"duplicate cell ids in a Count: \[2\]")
+
+
+def test_count_constant_above_range():
+    bad = make_clue(9, CountConstraint(Count((0, 1)), Comparison.EQ, 5))
+    assert_invalid(with_(clues=(bad,)), r"compares a count to 5, out of range \[0, 2\]")
+
+
+def test_count_constant_below_range():
+    bad = make_clue(9, CountConstraint(Count((0, 1)), Comparison.EQ, -1))
+    assert_invalid(with_(clues=(bad,)), r"compares a count to -1, out of range \[0, 2\]")
 
 
 def test_solution_missing_cell():
