@@ -5,7 +5,6 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from BackEnd.APIs.demo import make_demo_puzzle
 from BackEnd.APIs.schemas import (
     AutoSolveResponse,
     DeductionStep,
@@ -22,14 +21,14 @@ from BackEnd.GameEngine.ConstraintChecker import ConstraintChecker
 from BackEnd.GameEngine.GameEngine import GameEngine, SubmitOutcome
 from BackEnd.GameEngine.GameObject.objects import Verdict
 from BackEnd.GameEngine.GameState import PublicState
+from BackEnd.GameEngine.Maps import PUZZLES
 
 app = FastAPI(title="Griductive API")
 
-demo_puzzle = make_demo_puzzle()
-puzzles = {demo_puzzle.id: demo_puzzle}
+puzzles = {puzzle.id: puzzle for puzzle in PUZZLES}
 checker: ConstraintChecker = BruteForceChecker()
 engine_type: type[GameEngine] = GameEngine
-app.state.engine = engine_type(demo_puzzle, checker)
+app.state.engine = engine_type(PUZZLES[0], checker)
 game_lock = Lock()
 
 
@@ -73,7 +72,7 @@ def open_frontend():
 
 @app.get("/api/puzzles")
 def list_puzzles() -> list[str]:
-    return sorted(puzzles)
+    return list(puzzles)
 
 
 @app.post("/api/game/load", response_model=PublicStateResponse)
