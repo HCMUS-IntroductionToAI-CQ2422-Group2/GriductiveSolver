@@ -1,84 +1,245 @@
 <!doctype html>
-<html lang="vi">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#f5f2eb">
+  <meta name="theme-color" content="#eae5d9">
   <title>Griductive Solver — Caseboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400;1,6..72,500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="static/css/app.css">
 </head>
 <body>
-  <div class="app-shell">
-    <header class="topbar">
-      <a class="brand" href="#" aria-label="Griductive Solver home">
-        <span class="brand-mark" aria-hidden="true">G<span>↗</span></span>
-        <span class="brand-copy"><strong>GRIDUCTIVE</strong><small>CASE SOLVER</small></span>
-      </a>
-
-      <div class="case-context">
-        <div><span class="eyebrow">ACTIVE CASE</span><strong id="case-name">—</strong></div>
-        <button class="button button-light button-small" id="load-case" title="Load the next case"><img src="static/icons/load.svg" alt=""> <span>Load a case</span></button>
-      </div>
-
-      <div class="progress-block" aria-label="Progress">
-        <div class="progress-heading"><span>Proven</span><strong id="progress-label">0 / 0</strong></div>
-        <div class="progress-track"><span id="progress-bar"></span></div>
-        <div class="play-stats"><span>Mistakes <b id="mistake-count">0</b></span><i>·</i><span>Hints <b id="hint-count">0</b></span></div>
-      </div>
-
-      <div class="top-actions">
-        <button class="button button-dark" id="hint-btn" aria-label="Hint" title="Hint"><img src="static/icons/hint.svg" alt=""> <span>Hint</span></button>
-        <button class="button button-light" id="autosolve-btn" aria-label="Auto solve" title="Auto solve"><img src="static/icons/auto-solve.svg" alt=""> <span>Auto solve</span></button>
-        <button class="button button-light" id="restart-btn" aria-label="Restart" title="Restart"><img src="static/icons/restart.svg" alt=""> <span>Restart</span></button>
-        <span class="connection-pill" title="Backend connection"><i></i><span id="connection-label">CONNECTING…</span></span>
-      </div>
-    </header>
-
+  <div class="app-shell" id="app-shell">
     <div class="offline-banner" id="offline-banner" role="status" hidden>
       <span class="offline-icon" aria-hidden="true">!</span>
       <p><strong>Backend unreachable.</strong> Showing read-only demo data — verdicts, hints and Auto solve need the live API.</p>
-      <button class="button button-light button-small" id="retry-btn" type="button">Retry connection</button>
+      <button class="button button-dossier button-small" id="retry-btn" type="button">Retry connection</button>
     </div>
 
-    <main class="workspace">
+    <main class="workspace" id="workspace">
+      <!-- MAIN INVESTIGATION BOARD -->
       <section class="main-panel" aria-label="Investigation board">
-        <div class="page-heading">
-          <h1>Who’s involved?</h1>
-          <p>Every clue is always true. Make a verdict only when the clues force it.</p>
+        <div class="dossier-heading">
+          <div class="header-identity">
+            <a class="brand" href="#" aria-label="Griductive Solver home">
+              <span class="brand-seal" aria-hidden="true">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="3" y="3" width="4.5" height="4.5" rx="1" />
+                  <rect x="9.75" y="3" width="4.5" height="4.5" rx="1" />
+                  <rect x="16.5" y="3" width="4.5" height="4.5" rx="1" />
+                  <rect x="3" y="9.75" width="4.5" height="4.5" rx="1" />
+                  <rect x="9.75" y="9.75" width="4.5" height="4.5" rx="1" />
+                  <rect x="16.5" y="9.75" width="4.5" height="4.5" rx="1" />
+                  <rect x="3" y="16.5" width="4.5" height="4.5" rx="1" />
+                  <rect x="9.75" y="16.5" width="4.5" height="4.5" rx="1" />
+                  <rect x="16.5" y="16.5" width="4.5" height="4.5" rx="1" />
+                </svg>
+              </span>
+              <div class="brand-text">
+                <span class="brand-title">Griductive</span>
+                <span class="brand-sub">Think clearly. Solve logically.</span>
+              </div>
+            </a>
+            <span class="connection-status connection-stamp" title="Backend connection status">
+              <i class="stamp-dot"></i>
+              <span id="connection-label">CONNECTING…</span>
+            </span>
+          </div>
+          <div class="investigation-heading-row">
+            <div class="investigation-title">
+              <div class="dossier-tags">
+                <span class="dossier-tag-label">CONFIDENTIAL</span>
+                <span class="dossier-tag-sep">//</span>
+                <span class="dossier-tag-id">CASE INVESTIGATION</span>
+              </div>
+              <h1>Who’s involved?</h1>
+              <p>Every clue is always true. Make a verdict only when the clues force it.</p>
+            </div>
+            <div class="actions-zone">
+              <button class="button button-dark" id="hint-btn" type="button" aria-label="Hint" title="Hint (Press H)">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-1 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5" />
+                  <path d="M9 18h6" />
+                  <path d="M10 22h4" />
+                </svg>
+                <span>Hint</span>
+                <kbd>H</kbd>
+              </button>
+              <button class="button button-outline" id="autosolve-btn" type="button" aria-label="Auto solve" title="Auto solve with SAT Solver">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <polygon points="6 3 20 12 6 21 6 3" />
+                </svg>
+                <span>Auto solve</span>
+              </button>
+              <button class="button button-ai-toggle" id="ai-steps-btn" type="button" aria-expanded="false" aria-controls="ai-steps-panel" title="Toggle AI Reasoning Journal" aria-label="AI Steps">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <line x1="3" y1="6" x2="21" y2="6" />
+                  <line x1="3" y1="12" x2="21" y2="12" />
+                  <line x1="3" y1="18" x2="21" y2="18" />
+                </svg>
+                <span>AI Steps</span>
+                <span class="ai-badge" id="ai-steps-badge" hidden>0</span>
+              </button>
+              <button class="button button-icon-only button-outline" id="restart-btn" type="button" aria-label="Restart" title="Restart case to initial state">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                  <path d="M3 3v5h5" />
+                </svg>
+                <span class="sr-only">Restart</span>
+              </button>
+            </div>
+          </div>
+          <div class="case-module">
+            <div class="case-zone">
+              <div class="case-meta">
+                <span class="case-eyebrow">Current case</span>
+                <strong id="case-name" class="case-title">—</strong>
+              </div>
+              <button class="button button-dossier button-small" id="load-case" type="button" title="Load the next case" aria-label="Load the next case">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M21 2v6h-6" />
+                  <path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
+                  <path d="M3 22v-6h6" />
+                  <path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
+                </svg>
+                <span>New case</span>
+              </button>
+            </div>
+            <div class="topbar-status">
+              <span class="status-proven"><strong id="progress-label">0 / 0</strong> solved</span>
+              <div class="progress-meter" aria-hidden="true">
+                <div class="progress-bar-fill" id="progress-bar"></div>
+              </div>
+              <div class="play-stats">
+                <span>Mistakes <b id="mistake-count">0</b></span>
+                <span>Hints <b id="hint-count">0</b></span>
+              </div>
+            </div>
+          </div>
         </div>
 
         <section class="win-panel" id="win-panel" aria-live="polite" hidden>
-          <span class="win-mark" aria-hidden="true">✓</span>
-          <div class="win-copy"><strong id="win-title">Case closed</strong><p id="win-body"></p></div>
-          <div class="win-stats"><span><b id="win-mistakes">0</b>Mistakes</span><span><b id="win-hints">0</b>Hints</span></div>
-          <div class="win-actions"><button class="button button-light" id="win-again" type="button">Play again</button><button class="button button-dark" id="win-next" type="button">Next case</button></div>
+          <div class="win-seal" aria-hidden="true">✓</div>
+          <div class="win-copy">
+            <span class="win-eyebrow">JUSTICE SERVED</span>
+            <strong id="win-title">Case closed</strong>
+            <p id="win-body">Every character has a proven verdict, without guessing.</p>
+          </div>
+          <div class="win-stats">
+            <div class="win-stat-box">
+              <span class="stat-title">Mistakes</span>
+              <b id="win-mistakes">0</b>
+            </div>
+            <div class="win-stat-box">
+              <span class="stat-title">Hints</span>
+              <b id="win-hints">0</b>
+            </div>
+          </div>
+          <div class="win-actions">
+            <button class="button button-outline" id="win-again" type="button">Play again</button>
+            <button class="button button-dark" id="win-next" type="button">Next case</button>
+          </div>
+        </section>
+
+        <!-- BOARD-INTEGRATED PUBLIC CLUE REGION (CRITICAL REQUIREMENT) -->
+        <section class="public-evidence-banner" id="public-evidence-banner" aria-label="Public starting evidence" hidden>
+          <div class="public-evidence-head">
+            <div class="public-evidence-title">
+              <span class="public-bullet">◈</span>
+              <span class="eyebrow">PUBLIC STARTING CLUES</span>
+              <span class="public-count-badge" id="public-clues-count">0</span>
+            </div>
+            <small class="public-evidence-desc">Verified public initial clues established prior to investigation.</small>
+          </div>
+          <div class="public-evidence-list" id="public-evidence-list"></div>
         </section>
 
         <div class="board-toolbar">
-          <div class="board-name"><span class="board-symbol">▤</span><div><strong>Character board</strong><small><span id="board-size">3 × 3</span> grid <i>·</i> <span id="known-count">0 revealed</span></small></div></div>
-          <span class="caption-hint">Select a character, then press <kbd>I</kbd> Innocent or <kbd>C</kbd> Criminal · <button type="button" class="link-button" id="shortcuts-btn">Shortcuts <kbd>?</kbd></button></span>
-          <div class="playback-bar" id="playback-bar" hidden><span class="playback-dot" aria-hidden="true"></span><span id="playback-label">Auto solve</span><button class="button button-light button-small" id="playback-pause" type="button">Pause</button><button class="button button-dark button-small" id="playback-skip" type="button">Skip</button></div>
+          <div class="board-specs">
+            <span class="board-symbol">⌁</span>
+            <div class="board-spec-copy">
+              <strong>Character board</strong>
+              <small><span id="board-size">3 × 3</span> grid <i>·</i> <span id="known-count">0 revealed</span></small>
+            </div>
+          </div>
+          <div class="board-hint-row">
+            <span class="caption-hint">
+              Select a character, then press <kbd>I</kbd> Innocent or <kbd>C</kbd> Criminal ·
+              <button type="button" class="link-button" id="shortcuts-btn">Shortcuts <kbd>?</kbd></button>
+            </span>
+          </div>
+          <div class="playback-bar" id="playback-bar" hidden>
+            <span class="playback-dot" aria-hidden="true"></span>
+            <span id="playback-label">Auto solve</span>
+            <button class="button button-dossier button-small" id="playback-pause" type="button">Pause</button>
+            <button class="button button-dark button-small" id="playback-skip" type="button">Skip</button>
+          </div>
         </div>
 
-        <div class="board-wrap"><div class="board" id="board" aria-label="Character grid"></div></div>
-        <div class="board-caption"><span><i class="legend-dot face-down"></i> Unrevealed</span><span><i class="legend-dot face-up"></i> Proven</span><span><i class="legend-dot mentioned"></i> Mentioned by clue</span></div>
+        <div class="board-wrap">
+          <div class="board" id="board" aria-label="Character grid"></div>
+        </div>
+
+        <div class="board-caption">
+          <span class="legend-item"><i class="legend-marker unrevealed"></i> Unrevealed</span>
+          <span class="legend-item"><i class="legend-marker innocent"></i> Proven: Innocent</span>
+          <span class="legend-item"><i class="legend-marker criminal"></i> Proven: Criminal</span>
+          <span class="legend-item"><i class="legend-marker mentioned"></i> Mentioned by clue</span>
+        </div>
 
         <div class="toast" id="toast" role="status" aria-live="polite"></div>
       </section>
 
-      <aside class="clue-panel" id="clue-panel" aria-label="Clues">
-        <div class="clue-panel-head">
-          <div><span class="eyebrow">CASE NOTES</span><h2>Clues <span class="clue-count" id="clue-count">0</span></h2></div>
+      <!-- AI REASONING JOURNAL (COLLAPSIBLE RIGHT PANEL - CLOSED BY DEFAULT) -->
+      <aside class="ai-steps-panel" id="ai-steps-panel" aria-label="AI Reasoning Journal" hidden>
+        <div class="ai-panel-head">
+          <div class="ai-panel-title-wrap">
+            <span class="eyebrow">FORMAL PROOF</span>
+            <h2>AI Reasoning Journal</h2>
+            <p class="ai-panel-sub">Trace the SAT solver's logical deduction steps in real time.</p>
+          </div>
+          <button class="ai-panel-close" id="ai-steps-close" type="button" aria-label="Close journal" title="Close journal (Esc)">✕</button>
         </div>
-        <div class="clue-feed" id="clue-feed" aria-live="polite"></div>
-        <div class="clue-panel-footer"><span class="privacy-mark">◈</span><p>Only public clues and proven statuses appear here.</p></div>
+        <div class="ai-steps-feed" id="ai-steps-feed" aria-live="polite">
+          <div class="ai-empty-state">
+            <span class="ai-empty-icon">☷</span>
+            <strong>No deduction steps recorded yet</strong>
+            <p>Run <em>Auto solve</em> or request a <em>Hint</em> to trace the solver's deductive reasoning chain.</p>
+          </div>
+        </div>
+        <div class="ai-panel-footer">
+          <span class="ai-footer-dot"></span>
+          <p>Every deduction step is formally verified by propositional SAT solving.</p>
+        </div>
       </aside>
     </main>
 
-    <footer class="app-footer"><span>GRIDUCTIVE SOLVER <i>·</i> CSC14003 · PROJECT 2</span><span><i class="footer-dot"></i> <span id="footer-mode">Connecting to backend…</span></span></footer>
+    <footer class="app-footer">
+      <div class="footer-left">
+        <span class="footer-brand">GRIDUCTIVE SOLVER</span>
+        <span class="footer-sep">·</span>
+        <span class="footer-meta">CSC14003 · PROJECT 2 // PROPOSITIONAL LOGIC SOLVER</span>
+      </div>
+      <div class="footer-right">
+        <i class="footer-status-dot"></i>
+        <span id="footer-mode">Connecting to backend…</span>
+      </div>
+    </footer>
   </div>
 
-  <div class="modal-backdrop" id="modal-backdrop" hidden><section class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><button class="modal-close" id="modal-close" aria-label="Close">×</button><span class="modal-mark">✧</span><h2 id="modal-title">A small nudge</h2><p id="modal-copy"></p><button class="button button-dark" id="modal-ok">Got it</button></section></div>
+  <!-- SHORTCUTS & NOTICE MODAL -->
+  <div class="modal-backdrop" id="modal-backdrop" hidden>
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <button class="modal-close" id="modal-close" aria-label="Close">✕</button>
+      <span class="modal-mark">❖</span>
+      <h2 id="modal-title">Keyboard shortcuts</h2>
+      <p id="modal-copy"></p>
+      <button class="button button-dark" id="modal-ok" type="button">Got it</button>
+    </section>
+  </div>
+
   <script type="module" src="static/js/app.js"></script>
 </body>
 </html>

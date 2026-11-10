@@ -1,4 +1,4 @@
-import { initialPublicState } from "../../mock/state.js";
+import { demo3x3State, demo4x4State, demo5x5State, initialPublicState } from "../../mock/state.js";
 
 // Adapter cho Backend API (BackEnd/APIs/main.py + schemas.py).
 // Mọi field giữ nguyên snake_case như backend trả về; app.js đọc trực tiếp.
@@ -83,17 +83,32 @@ export class GameApi {
 }
 
 /**
- * Chế độ offline khi không gọi được backend: chỉ hiển thị public state mẫu.
+ * Chế độ offline khi không gọi được backend: hỗ trợ xem nhiều kích thước bảng (3x3, 4x4, 5x5).
  * Không tự bịa kết quả verdict/hint vì FrontEnd không có đáp án.
  */
 export class MockGameApi {
   mode = "mock";
+  #puzzles = [demo3x3State, demo4x4State, demo5x5State];
   #state = structuredClone(initialPublicState);
+
   #offline() { return Promise.reject(new ApiError(0, "Backend is offline — this action needs the live API.")); }
-  async listPuzzles() { return [this.#state.puzzle_id]; }
+
+  async listPuzzles() { return this.#puzzles.map((p) => p.puzzle_id); }
   async getGame() { return structuredClone(this.#state); }
-  async loadPuzzle() { return this.restart(); }
-  async restart() { this.#state = structuredClone(initialPublicState); return this.getGame(); }
+
+  async loadPuzzle(puzzleId) {
+    const found = this.#puzzles.find((p) => p.puzzle_id === puzzleId) || this.#puzzles[0];
+    this.#state = structuredClone(found);
+    return this.getGame();
+  }
+
+  async restart() {
+    const currentId = this.#state.puzzle_id;
+    const found = this.#puzzles.find((p) => p.puzzle_id === currentId) || initialPublicState;
+    this.#state = structuredClone(found);
+    return this.getGame();
+  }
+
   submitVerdict() { return this.#offline(); }
   hint() { return this.#offline(); }
   autoSolve() { return this.#offline(); }
