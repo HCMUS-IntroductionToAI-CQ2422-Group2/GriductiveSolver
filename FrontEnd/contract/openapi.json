@@ -1,0 +1,571 @@
+{
+  "components": {
+    "schemas": {
+      "AutoSolveResponse": {
+        "properties": {
+          "state": {
+            "$ref": "#/components/schemas/PublicStateResponse"
+          },
+          "status": {
+            "enum": [
+              "SOLVED",
+              "STUCK",
+              "INCONSISTENT"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "trace": {
+            "items": {
+              "$ref": "#/components/schemas/DeductionStep"
+            },
+            "title": "Trace",
+            "type": "array"
+          }
+        },
+        "required": [
+          "status",
+          "state",
+          "trace"
+        ],
+        "title": "AutoSolveResponse",
+        "type": "object"
+      },
+      "CellResponse": {
+        "properties": {
+          "character_name": {
+            "title": "Character Name",
+            "type": "string"
+          },
+          "column": {
+            "title": "Column",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "is_criminal": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Criminal"
+          },
+          "profession": {
+            "title": "Profession",
+            "type": "string"
+          },
+          "row": {
+            "title": "Row",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "row",
+          "column",
+          "character_name",
+          "profession",
+          "is_criminal"
+        ],
+        "title": "CellResponse",
+        "type": "object"
+      },
+      "ClueResponse": {
+        "properties": {
+          "description_nl": {
+            "title": "Description Nl",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "referenced_cell_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Referenced Cell Ids",
+            "type": "array"
+          },
+          "source_cell_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Cell Id"
+          }
+        },
+        "required": [
+          "id",
+          "source_cell_id",
+          "description_nl",
+          "referenced_cell_ids"
+        ],
+        "title": "ClueResponse",
+        "type": "object"
+      },
+      "DeductionStep": {
+        "properties": {
+          "active_clue_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Active Clue Ids",
+            "type": "array"
+          },
+          "revealed_clue_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Revealed Clue Ids",
+            "type": "array"
+          },
+          "sat_queries": {
+            "items": {
+              "$ref": "#/components/schemas/SatQuery"
+            },
+            "title": "Sat Queries",
+            "type": "array"
+          },
+          "step": {
+            "title": "Step",
+            "type": "integer"
+          },
+          "verdict": {
+            "$ref": "#/components/schemas/Verdict"
+          }
+        },
+        "required": [
+          "step",
+          "active_clue_ids",
+          "sat_queries",
+          "verdict",
+          "revealed_clue_ids"
+        ],
+        "title": "DeductionStep",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "HintResponse": {
+        "properties": {
+          "sat_queries": {
+            "items": {
+              "$ref": "#/components/schemas/SatQuery"
+            },
+            "title": "Sat Queries",
+            "type": "array"
+          },
+          "status": {
+            "enum": [
+              "FOUND",
+              "UNKNOWN",
+              "SOLVED",
+              "INCONSISTENT"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "verdict": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Verdict"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "status",
+          "sat_queries"
+        ],
+        "title": "HintResponse",
+        "type": "object"
+      },
+      "LoadRequest": {
+        "properties": {
+          "puzzle_id": {
+            "title": "Puzzle Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "puzzle_id"
+        ],
+        "title": "LoadRequest",
+        "type": "object"
+      },
+      "PublicStateResponse": {
+        "properties": {
+          "cells": {
+            "items": {
+              "$ref": "#/components/schemas/CellResponse"
+            },
+            "title": "Cells",
+            "type": "array"
+          },
+          "height": {
+            "title": "Height",
+            "type": "integer"
+          },
+          "is_complete": {
+            "title": "Is Complete",
+            "type": "boolean"
+          },
+          "puzzle_id": {
+            "title": "Puzzle Id",
+            "type": "string"
+          },
+          "revealed_clues": {
+            "items": {
+              "$ref": "#/components/schemas/ClueResponse"
+            },
+            "title": "Revealed Clues",
+            "type": "array"
+          },
+          "width": {
+            "title": "Width",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "puzzle_id",
+          "height",
+          "width",
+          "cells",
+          "revealed_clues",
+          "is_complete"
+        ],
+        "title": "PublicStateResponse",
+        "type": "object"
+      },
+      "SatQuery": {
+        "properties": {
+          "assumption": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Verdict"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "satisfiable": {
+            "title": "Satisfiable",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "assumption",
+          "satisfiable"
+        ],
+        "title": "SatQuery",
+        "type": "object"
+      },
+      "SubmitOutcome": {
+        "enum": [
+          "ACCEPTED",
+          "NOT_PROVABLE",
+          "CONTRADICTED",
+          "ALREADY_PROVED",
+          "INVALID_CELL"
+        ],
+        "title": "SubmitOutcome",
+        "type": "string"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      },
+      "Verdict": {
+        "properties": {
+          "cell_id": {
+            "title": "Cell Id",
+            "type": "integer"
+          },
+          "is_criminal": {
+            "title": "Is Criminal",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "cell_id",
+          "is_criminal"
+        ],
+        "title": "Verdict",
+        "type": "object"
+      },
+      "VerdictRequest": {
+        "properties": {
+          "cell_id": {
+            "title": "Cell Id",
+            "type": "integer"
+          },
+          "is_criminal": {
+            "title": "Is Criminal",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "cell_id",
+          "is_criminal"
+        ],
+        "title": "VerdictRequest",
+        "type": "object"
+      },
+      "VerdictResponse": {
+        "properties": {
+          "outcome": {
+            "$ref": "#/components/schemas/SubmitOutcome"
+          },
+          "state": {
+            "$ref": "#/components/schemas/PublicStateResponse"
+          }
+        },
+        "required": [
+          "outcome",
+          "state"
+        ],
+        "title": "VerdictResponse",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "Griductive API",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/game": {
+      "get": {
+        "operationId": "get_game_api_game_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicStateResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Game"
+      }
+    },
+    "/api/game/auto-solve": {
+      "post": {
+        "operationId": "auto_solve_api_game_auto_solve_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutoSolveResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Auto Solve"
+      }
+    },
+    "/api/game/hint": {
+      "get": {
+        "operationId": "get_hint_api_game_hint_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HintResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Hint"
+      }
+    },
+    "/api/game/load": {
+      "post": {
+        "operationId": "load_game_api_game_load_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoadRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicStateResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Load Game"
+      }
+    },
+    "/api/game/restart": {
+      "post": {
+        "operationId": "restart_game_api_game_restart_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicStateResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Restart Game"
+      }
+    },
+    "/api/game/verdicts": {
+      "post": {
+        "operationId": "submit_verdict_api_game_verdicts_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerdictRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerdictResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Submit Verdict"
+      }
+    },
+    "/api/puzzles": {
+      "get": {
+        "operationId": "list_puzzles_api_puzzles_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "title": "Response List Puzzles Api Puzzles Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Puzzles"
+      }
+    }
+  }
+}
