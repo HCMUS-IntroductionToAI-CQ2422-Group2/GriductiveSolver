@@ -2,6 +2,7 @@ from pathlib import Path
 from threading import Lock
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -18,13 +19,21 @@ from BackEnd.APIs.schemas import (
 )
 from BackEnd.GameEngine.BruteForceChecker import BruteForceChecker
 from BackEnd.GameEngine.ConstraintChecker import ConstraintChecker
-from BackEnd.GameEngine.DeductiveAgent import DeductiveAgent
+from BackEnd.GameEngine.DeductiveAgent import DeductiveAgent, MoveRejected
 from BackEnd.GameEngine.GameEngine import GameEngine, SubmitOutcome
 from BackEnd.GameEngine.GameObject.objects import Verdict
 from BackEnd.GameEngine.GameState import PublicState
 from BackEnd.GameEngine.Maps import PUZZLES
 
 app = FastAPI(title="Griductive API")
+# Lets the UI run from another local dev server and call the API via
+# `?api=http://127.0.0.1:8000` (see FrontEnd/API_CONTRACT.md).
+app.add_middleware(
+    CORSMiddleware,
+    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?",
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type"],
+)
 
 puzzles = {puzzle.id: puzzle for puzzle in PUZZLES}
 checker: ConstraintChecker = BruteForceChecker()
@@ -101,8 +110,8 @@ def auto_solve():
     with game_lock:
         try:
             result = DeductiveAgent(checker).solve(app.state.engine)
-        except RuntimeError as error:
-            raise HTTPException(status_code=409, detail=str(error)) from error
+        except MoveRejected as error:
+            raise HTTPException(status_code=409, detail=error.outcome.value) from error
         return {
             "status": result.status,
             "state": to_public_json(result.state),

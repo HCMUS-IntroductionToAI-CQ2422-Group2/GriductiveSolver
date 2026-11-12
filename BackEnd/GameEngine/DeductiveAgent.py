@@ -50,6 +50,15 @@ class SolveResult:
     trace: tuple[Step, ...] = field(default_factory=tuple)
 
 
+class MoveRejected(RuntimeError):
+    """The engine refused a move the agent believed was proved."""
+
+    def __init__(self, verdict: Verdict, outcome: SubmitOutcome):
+        super().__init__(f"Agent move {verdict} rejected: {outcome.value}")
+        self.verdict = verdict
+        self.outcome = outcome
+
+
 class DeductiveAgent:
     def __init__(self, checker: ConstraintChecker):
         self._checker = checker
@@ -97,9 +106,7 @@ class DeductiveAgent:
 
             result = engine.submit_verdict(verdict.cell_id, verdict.is_criminal)
             if result.outcome is not SubmitOutcome.ACCEPTED:
-                raise RuntimeError(
-                    f"Agent move {verdict} rejected: {result.outcome.value}"
-                )
+                raise MoveRejected(verdict, result.outcome)
 
             active = tuple(clue.id for clue in state.revealed_clues)
             trace.append(Step(
