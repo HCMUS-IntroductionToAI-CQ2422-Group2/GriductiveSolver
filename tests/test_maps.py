@@ -69,10 +69,16 @@ def test_expert_opening_requires_two_distinct_deduction_gates():
 
 
 @pytest.fixture
-def client(monkeypatch):
-    monkeypatch.setattr(api.app.state, "engine", GameEngine(PUZZLES[0], api.checker))
-    with TestClient(api.app) as test_client:
-        yield test_client
+def client():
+    # Not monkeypatch.setattr: Starlette's State keeps attributes outside
+    # __dict__, so pytest>=9 would delete app.state.engine on undo.
+    previous = api.app.state.engine
+    api.app.state.engine = GameEngine(PUZZLES[0], api.checker)
+    try:
+        with TestClient(api.app) as test_client:
+            yield test_client
+    finally:
+        api.app.state.engine = previous
 
 
 def test_api_lists_six_real_maps_and_starts_with_medium_3x3(client):
