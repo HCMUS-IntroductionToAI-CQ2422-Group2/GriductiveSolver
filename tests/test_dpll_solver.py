@@ -2,7 +2,7 @@ from itertools import product
 
 import pytest
 
-from BackEnd.GameEngine import DPLL_Solver as dpll
+from BackEnd.LogicAgent import DPLL_Solver as dpll
 
 
 BACKTRACKING_CNF = ((-1, 2), (-1, -2), (1, 3))

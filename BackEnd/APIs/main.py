@@ -2,6 +2,7 @@ from pathlib import Path
 from threading import Lock
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -18,12 +19,21 @@ from BackEnd.APIs.schemas import (
 )
 from BackEnd.GameEngine.BruteForceChecker import BruteForceChecker
 from BackEnd.GameEngine.ConstraintChecker import ConstraintChecker
+from BackEnd.GameEngine.DeductiveAgent import DeductiveAgent, MoveRejected
 from BackEnd.GameEngine.GameEngine import GameEngine, SubmitOutcome
 from BackEnd.GameEngine.GameObject.objects import Verdict
 from BackEnd.GameEngine.GameState import PublicState
 from BackEnd.GameEngine.Maps import PUZZLES
 
 app = FastAPI(title="Griductive API")
+# Lets the UI run from another local dev server and call the API via
+# `?api=http://127.0.0.1:8000` (see FrontEnd/API_CONTRACT.md).
+app.add_middleware(
+    CORSMiddleware,
+    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?",
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type"],
+)
 
 puzzles = {puzzle.id: puzzle for puzzle in PUZZLES}
 checker: ConstraintChecker = BruteForceChecker()
@@ -33,35 +43,12 @@ game_lock = Lock()
 
 
 def find_hint(state: PublicState, constraint_checker: ConstraintChecker) -> HintResponse:
-    sat_queries: list[SatQuery] = []
-
-    def check(assumption: Verdict | None = None) -> bool:
-        satisfiable = constraint_checker.has_solution(state, assumption)
-        sat_queries.append(SatQuery(assumption=assumption, satisfiable=satisfiable))
-        return satisfiable
-
-    if not check():
-        return HintResponse(status="INCONSISTENT", sat_queries=sat_queries)
-
-    unresolved_ids = [
-        cell.id for row in state.board.cells for cell in row
-        if cell.id not in state.proved_statuses
-    ]
-    for cell_id in unresolved_ids:
-        criminal = Verdict(cell_id, True)
-        innocent = Verdict(cell_id, False)
-        can_be_criminal = check(criminal)
-        can_be_innocent = check(innocent)
-        if can_be_criminal != can_be_innocent:
-            return HintResponse(
-                status="FOUND",
-                verdict=criminal if can_be_criminal else innocent,
-                sat_queries=sat_queries,
-            )
-
+    move = DeductiveAgent(constraint_checker).next_move(state)
     return HintResponse(
-        status="UNKNOWN" if unresolved_ids else "SOLVED",
-        sat_queries=sat_queries,
+        status=move.status,
+        verdict=move.verdict,
+        sat_queries=[SatQuery(assumption=q.assumption, satisfiable=q.satisfiable)
+                     for q in move.queries],
     )
 
 
@@ -120,37 +107,26 @@ def get_hint():
 
 @app.post("/api/game/auto-solve", response_model=AutoSolveResponse)
 def auto_solve():
-    trace: list[DeductionStep] = []
-
     with game_lock:
-        engine: GameEngine = app.state.engine
-        state = engine.get_public_state()
-        while True:
-            hint = find_hint(state, checker)
-            verdict = hint.verdict
-            if verdict is None:
-                return {
-                    "status": "STUCK" if hint.status == "UNKNOWN" else hint.status,
-                    "state": to_public_json(state),
-                    "trace": trace,
-                }
-
-            result = engine.submit_verdict(verdict.cell_id, verdict.is_criminal)
-            if result.outcome is not SubmitOutcome.ACCEPTED:
-                raise HTTPException(status_code=409, detail=result.outcome.value)
-
-            active_clue_ids = [clue.id for clue in state.revealed_clues]
-            trace.append(DeductionStep(
-                step=len(trace) + 1,
-                active_clue_ids=active_clue_ids,
-                sat_queries=hint.sat_queries,
-                verdict=verdict,
-                revealed_clue_ids=[
-                    clue.id for clue in result.public_state.revealed_clues
-                    if clue.id not in active_clue_ids
-                ],
-            ))
-            state = result.public_state
+        try:
+            result = DeductiveAgent(checker).solve(app.state.engine)
+        except MoveRejected as error:
+            raise HTTPException(status_code=409, detail=error.outcome.value) from error
+        return {
+            "status": result.status,
+            "state": to_public_json(result.state),
+            "trace": [
+                DeductionStep(
+                    step=step.step,
+                    active_clue_ids=list(step.active_clue_ids),
+                    sat_queries=[SatQuery(assumption=q.assumption, satisfiable=q.satisfiable)
+                                 for q in step.queries],
+                    verdict=step.verdict,
+                    revealed_clue_ids=list(step.revealed_clue_ids),
+                )
+                for step in result.trace
+            ],
+        }
 
 
 frontend_dir = Path(__file__).resolve().parents[2] / "FrontEnd"

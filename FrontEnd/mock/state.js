@@ -54,7 +54,7 @@ export const demo4x4State = {
       id: 1,
       source_cell_id: 0,
       description_nl: "Có đúng hai tội phạm ở cột A và cột B. Long và Mai ở giữa khu vực cảng không phải đồng phạm.",
-      referenced_cell_ids: [0, 4, 8, 12, 1, 5, 9, 13]
+      referenced_cell_ids: [0, 1, 4, 5, 8, 9, 12, 13]
     },
     {
       id: 2,
