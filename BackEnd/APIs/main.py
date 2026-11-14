@@ -17,13 +17,13 @@ from BackEnd.APIs.schemas import (
     VerdictResponse,
     to_public_json,
 )
-from BackEnd.GameEngine.BruteForceChecker import BruteForceChecker
 from BackEnd.GameEngine.ConstraintChecker import ConstraintChecker
 from BackEnd.GameEngine.DeductiveAgent import DeductiveAgent, MoveRejected
 from BackEnd.GameEngine.GameEngine import GameEngine, SubmitOutcome
 from BackEnd.GameEngine.GameObject.objects import Verdict
 from BackEnd.GameEngine.GameState import PublicState
 from BackEnd.GameEngine.Maps import PUZZLES
+from BackEnd.LogicAgent.dpll_checker import DPLLChecker
 
 app = FastAPI(title="Griductive API")
 # Lets the UI run from another local dev server and call the API via
@@ -36,7 +36,7 @@ app.add_middleware(
 )
 
 puzzles = {puzzle.id: puzzle for puzzle in PUZZLES}
-checker: ConstraintChecker = BruteForceChecker()
+checker: ConstraintChecker = DPLLChecker()
 engine_type: type[GameEngine] = GameEngine
 app.state.engine = engine_type(PUZZLES[0], checker)
 game_lock = Lock()

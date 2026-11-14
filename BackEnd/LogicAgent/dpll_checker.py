@@ -30,4 +30,4 @@ class DPLLChecker:
             )))
 
         cnf: CNF = tuple(tuple(clause) for clause in clauses)
-        return solve(cnf, len(encoder.variable_map)) is not None
+        return solve(cnf, encoder.next_variable - 1) is not None

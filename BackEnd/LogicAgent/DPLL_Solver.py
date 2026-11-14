@@ -68,7 +68,7 @@ def solve(cnf: CNF, num_vars: int, stats: DPLLStats | None = None) -> dict[int, 
 
     if stats is not None:
         stats.runtime_ms = (perf_counter() - started_at) * 1000
-    
+
     if result is None:
         return None
     return {variable: result.get(variable, False) for variable in range(1, num_vars+1)}

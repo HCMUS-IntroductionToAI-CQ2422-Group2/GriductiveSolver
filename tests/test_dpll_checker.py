@@ -1,5 +1,4 @@
-from BackEnd.GameEngine.DeductiveAgent import DeductiveAgent
-from BackEnd.GameEngine.GameEngine import GameEngine
+from BackEnd.GameEngine.GameEngine import GameEngine, SubmitOutcome
 from BackEnd.GameEngine.GameObject.constraints import (
     Comparison,
     Count,
@@ -36,7 +35,7 @@ def test_checker_preserves_empty_clause_from_encoder():
     assert not DPLLChecker().has_solution(state)
 
 
-def test_deductive_agent_solves_using_only_clues_revealed_at_each_step():
+def test_checker_uses_only_clues_revealed_at_each_step():
     puzzle = PuzzleDefinition(
         id="dpll-reveal-chain",
         board=make_board(1, 3),
@@ -52,10 +51,14 @@ def test_deductive_agent_solves_using_only_clues_revealed_at_each_step():
     engine = GameEngine(puzzle, checker)
 
     assert checker.has_solution(engine.get_public_state(), Verdict(2, False))
-    result = DeductiveAgent(checker).solve(engine)
+    assert tuple(clue.id for clue in engine.get_public_state().revealed_clues) == (1,)
+    first = engine.submit_verdict(1, True)
+    assert first.outcome is SubmitOutcome.ACCEPTED
+    assert tuple(clue.id for clue in first.public_state.revealed_clues) == (1, 2)
+    assert not checker.has_solution(first.public_state, Verdict(2, False))
 
-    assert result.status == "SOLVED"
-    assert result.state.proved_statuses == {0: False, 1: True, 2: True}
-    assert tuple(step.verdict for step in result.trace) == puzzle.solution[1:]
-    assert tuple(step.active_clue_ids for step in result.trace) == ((1,), (1, 2))
-    assert tuple(step.revealed_clue_ids for step in result.trace) == ((2,), (3,))
+    second = engine.submit_verdict(2, True)
+    assert second.outcome is SubmitOutcome.ACCEPTED
+    assert second.public_state.is_complete
+    assert second.public_state.proved_statuses == {0: False, 1: True, 2: True}
+    assert tuple(clue.id for clue in second.public_state.revealed_clues) == (1, 2, 3)
