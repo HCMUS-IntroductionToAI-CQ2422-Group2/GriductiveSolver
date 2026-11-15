@@ -17,6 +17,7 @@ import { playTrace } from "./ui/playback.js";
 import { hideWin, showWin } from "./ui/win.js";
 import { openHelp } from "./ui/dialogs.js";
 import { openTutorial } from "./ui/tutorial.js";
+import { setPaused } from "./ui/pause.js";
 import { play } from "./lib/sound.js";
 import { $ } from "./lib/dom.js";
 
@@ -99,7 +100,7 @@ async function connect() {
 // ---------- Actions ----------
 
 actions.select = (id) => {
-  if (S.busy || S.playback) return;
+  if (S.busy || S.playback || S.paused) return;
   startTimer();
   S.selectedId = S.selectedId === id ? null : id;
   S.pinnedClueId = null;
@@ -110,7 +111,7 @@ actions.select = (id) => {
 
 actions.submitVerdict = (cellId, isCriminal) => {
   const cell = cellById(cellId);
-  if (!cell || isProved(cell) || S.playback) return;
+  if (!cell || isProved(cell) || S.playback || S.paused) return;
   if (S.mode !== "live") { toast(T.needsLive); return; }
   startTimer();
   hideBubble();
@@ -170,7 +171,7 @@ function revealHint() {
 }
 
 actions.hint = () => {
-  if (S.playback || S.mode !== "live") return;
+  if (S.playback || S.paused || S.mode !== "live") return;
   const waiting = S.hint && cellById(S.hint.cellId);
   if (waiting && !isProved(waiting)) { revealHint(); return; }
 
@@ -207,7 +208,7 @@ actions.hint = () => {
 };
 
 actions.autoSolve = () => {
-  if (S.playback || S.mode !== "live") return;
+  if (S.playback || S.paused || S.mode !== "live") return;
   run(async () => {
     const before = S.game;
     S.working = "auto";
@@ -287,6 +288,12 @@ window.addEventListener("keydown", (event) => {
   if (event.ctrlKey || event.metaKey || event.altKey) return;
   if (event.target.closest?.("input, textarea, select, summary, [contenteditable]")) return;
 
+  if (S.paused) {
+    // Only resuming is possible while paused.
+    if (event.key === "Escape" || event.key.toLowerCase() === "p") { event.preventDefault(); setPaused(false); }
+    return;
+  }
+
   if (event.key === "Escape") {
     if (closeMenu() || S.playback) return;
     hideBubble();
@@ -317,6 +324,9 @@ window.addEventListener("keydown", (event) => {
   } else if (key === "h") {
     event.preventDefault();
     actions.hint();
+  } else if (key === "p") {
+    event.preventDefault();
+    setPaused(true);
   } else if (key === "n") {
     event.preventDefault();
     if (!S.busy) actions.nextCase();

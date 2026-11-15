@@ -54,6 +54,7 @@
           <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
           <span class="sr-only">Thời gian</span><b>00:00</b>
         </span>
+        <button class="tool pause-btn" id="pause-btn" type="button" aria-label="Tạm dừng" title="Tạm dừng (P)" disabled></button>
         <span class="stat stat-mistakes" id="stat-mistakes" title="Lỗi">
           <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
           <span class="sr-only">Lỗi</span><b>0</b>
@@ -96,6 +97,18 @@
           <div class="spotlight" id="spotlight" aria-hidden="true" hidden><span class="spotlight-tag">AI</span></div>
           <div class="clue-pop" id="clue-pop" role="tooltip" hidden></div>
           <div class="bubble" id="bubble" hidden></div>
+
+          <section class="pause" id="pause" aria-label="Đã tạm dừng" hidden>
+            <div class="pause-card">
+              <svg class="icon pause-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg>
+              <h2>Đã tạm dừng</h2>
+              <p>Đồng hồ đã dừng. Bảng và hồ sơ được che lại cho tới khi bạn quay lại.</p>
+              <button class="btn btn-spotlight" id="pause-resume" type="button">
+                <svg class="icon is-solid" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12-7.5z"/></svg>
+                <span>Tiếp tục</span><kbd>P</kbd>
+              </button>
+            </div>
+          </section>
 
           <section class="win" id="win" aria-label="Kết quả" hidden>
             <div class="win-card">

@@ -619,7 +619,7 @@ Mỗi PR chạy được độc lập và không làm hỏng hợp đồng API.
 
 ## 15. Trạng thái triển khai
 
-Cập nhật 15/11/2026, nhánh `feat/ui-spotlight-noir`. Cả 6 PR trong §13 đã được làm gộp trong một lần viết lại `FrontEnd/`.
+Cập nhật 15/11/2026, nhánh `update_UI`. Cả 6 PR trong §13 đã được làm gộp trong một lần viết lại `FrontEnd/`.
 
 ### Đã làm
 
@@ -653,6 +653,8 @@ Cập nhật 15/11/2026, nhánh `feat/ui-spotlight-noir`. Cả 6 PR trong §13 �
 - **Lời khai in ngay trên thẻ.** Thẻ đã xác định và có lời khai chuyển sang dạng "ảnh nhỏ + tên ở trên, lời khai ở dưới". Dòng nào không vừa thì bị cắt gọn theo số dòng; rê chuột (hoặc chọn thẻ) sẽ hiện đầy đủ trong một khung nổi. Trên điện thoại thẻ quá nhỏ nên chỉ hiện biểu tượng, chạm vào thẻ để đọc. Mục 7.3 ("lời khai không hiện trên thẻ") không còn đúng. Tab Hồ sơ vẫn giữ làm danh sách tổng hợp và là nơi duy nhất hiện manh mối công khai.
 - **Sợi chỉ chỉ hiện khi rê chuột** vào thẻ hoặc manh mối (hoặc khi ghim manh mối trong Hồ sơ). Thẻ đang được chọn không còn giữ sợi chỉ sau khi chuột rời đi. Trên màn hình cảm ứng (không có hover) thì thẻ đang chọn vẫn hiện sợi chỉ.
 - **Nút "Tự chơi tiếp"** trên thanh phát lại AI: dừng AI ở bước hiện tại và trả bàn chơi cho người chơi. Vì backend đã giải xong toàn bộ, UI dựng lại trạng thái bằng cách gọi restart rồi gửi lại lần lượt các phán quyết của người chơi và các bước AI đã phát. Ván có AI giải giúp chỉ được tối đa 1 sao.
+
+- **Tạm dừng (nút cạnh đồng hồ, phím `P`):** dừng đồng hồ, làm mờ và khoá bảng cùng Hồ sơ để không thể suy luận "miễn phí" trong lúc dừng. Bấm Tiếp tục, `P` hoặc `Esc` để quay lại. Không dùng được khi AI đang phát lại (đã có nút tạm dừng riêng) hoặc khi vụ án đã khép.
 
 ### Chưa kiểm chứng
 

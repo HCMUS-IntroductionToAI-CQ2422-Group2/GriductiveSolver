@@ -20,6 +20,7 @@ export const S = {
   puzzles: [],
 
   busy: false,
+  paused: false,          // player paused the game (board hidden, clock stopped)
   busyCellId: null,
   working: null,          // "auto" while waiting for the solver
 
@@ -100,6 +101,7 @@ export function resetRound() {
   S.solvedByAuto = false;
   S.aiSteps = 0;
   S.playback = null;
+  S.paused = false;
   S.solveOrder = [];
   S.clueSeq = new Map();
   S.seenClues = new Set();

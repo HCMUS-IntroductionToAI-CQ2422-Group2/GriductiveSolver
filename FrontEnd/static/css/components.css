@@ -658,6 +658,46 @@ dialog::backdrop { background: var(--scrim); backdrop-filter: blur(3px); }
 .error-code { font-family: var(--font-mono); font-size: var(--fs-sm); color: var(--ink-2); overflow-wrap: anywhere; }
 
 /* ==========================================================================
+   PAUSE
+   ========================================================================== */
+.pause-btn { background: var(--surface-sunken); border-radius: 50%; width: 36px; height: 36px; }
+.pause-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.pause-btn[aria-pressed="true"] { background: var(--spotlight); color: var(--on-spotlight); }
+
+/* Hide what could be studied while the clock is stopped. */
+.app.is-paused .board,
+.app.is-paused .rail-panel,
+.app.is-paused .threads {
+  filter: blur(16px) saturate(0.4);
+  opacity: 0.35;
+  transition: filter 0.2s ease, opacity 0.2s ease;
+}
+.pause {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: var(--sp-4);
+  z-index: var(--z-float);
+  animation: fade-in 0.2s ease both;
+}
+.pause-card {
+  display: grid;
+  justify-items: center;
+  gap: var(--sp-3);
+  width: min(380px, 100%);
+  padding: var(--sp-6) var(--sp-5);
+  border: 2px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: 0 8px 0 var(--shadow-solid), var(--elev);
+  text-align: center;
+}
+.pause-card h2 { font-family: var(--font-display); font-size: var(--fs-xl); font-weight: 700; }
+.pause-card p { color: var(--ink-2); font-size: var(--fs-sm); }
+.pause-icon { width: 44px; height: 44px; padding: 8px; border-radius: 50%; background: var(--spotlight); color: var(--on-spotlight); stroke-width: 2.5; }
+
+/* ==========================================================================
    WIN OVERLAY
    ========================================================================== */
 .win {

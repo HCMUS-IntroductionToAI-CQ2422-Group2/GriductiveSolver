@@ -84,7 +84,7 @@ document.addEventListener("visibilitychange", () => {
   if (document.hidden) {
     resumeOnShow = S.timer.startedAt != null;
     stopTimer();
-  } else if (resumeOnShow) {
+  } else if (resumeOnShow && !S.paused) {
     startTimer();
   }
 });
@@ -109,7 +109,7 @@ function renderControls() {
   const live = S.mode === "live";
   const hint = $("#hint-btn");
   const auto = $("#auto-btn");
-  hint.disabled = auto.disabled = S.busy || !live;
+  hint.disabled = auto.disabled = S.busy || !live || S.paused;
   hint.title = auto.title = live ? "" : T.needsLive;
   auto.querySelector("span").textContent = S.working === "auto" ? T.autoWorking : T.autoBtn;
   $("#restart-btn").disabled = S.busy;

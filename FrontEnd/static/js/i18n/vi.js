@@ -35,6 +35,10 @@ export const T = {
 
   // Top bar
   timer: "Thời gian",
+  pause: "Tạm dừng",
+  resume: "Tiếp tục",
+  pausedTitle: "Đã tạm dừng",
+  resumed: "Tiếp tục chơi",
   mistakes: "Lỗi",
   hints: "Gợi ý",
   offline: "Ngoại tuyến · chỉ xem",
@@ -161,6 +165,7 @@ export const T = {
     [["I"], "Phán quyết: Vô tội"],
     [["C"], "Phán quyết: Tội phạm"],
     [["H"], "Gợi ý (bấm hai lần để xem phán quyết)"],
+    [["P"], "Tạm dừng / tiếp tục"],
     [["N"], "Vụ án tiếp theo"],
     [["Esc"], "Bỏ chọn / đóng hộp thoại"],
     [["?"], "Mở bảng này"],
