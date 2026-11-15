@@ -10,7 +10,7 @@ Hai bên chỉ được dựa vào những gì ghi ở đây.
 | `FrontEnd/static/js/api.js` | Adapter phía UI; gọi đúng các endpoint dưới đây. |
 | `tests/test_api_contract.py` | Test giữ cho cả ba thứ trên khớp với tài liệu này. |
 
-Mọi field giữ nguyên **snake_case** như backend trả về; `app.js` đọc trực tiếp, không đổi tên.
+Mọi field giữ nguyên **snake_case** như backend trả về; các module trong `static/js/` đọc trực tiếp, không đổi tên.
 
 ## 1. Kiểu dữ liệu
 
@@ -130,13 +130,13 @@ Mọi lỗi HTTP có dạng `{ "detail": ... }`.
 
 `api.js` mặc định gọi **cùng origin** (`/api/...`). FastAPI phục vụ UI tại `/app/` và API tại `/api/` trên cùng origin.
 
-Khi chạy UI từ server khác (ví dụ Live Server ở cổng 5500), ghi đè địa chỉ API bằng `?api=http://127.0.0.1:8000` hoặc đặt `window.GRIDUCTIVE_API_BASE` trước khi load `app.js`. Backend cho phép CORS từ `localhost` và `127.0.0.1` ở mọi cổng, chỉ với `GET` và `POST`.
+Khi chạy UI từ server khác (ví dụ Live Server ở cổng 5500), ghi đè địa chỉ API bằng `?api=http://127.0.0.1:8000` hoặc đặt `window.GRIDUCTIVE_API_BASE` trước khi load `static/js/main.js`. Backend cho phép CORS từ `localhost` và `127.0.0.1` ở mọi cổng, chỉ với `GET` và `POST`.
 
 Cài đặt, chạy server, chạy test và các lỗi thường gặp: xem mục **Cách chạy** trong [README.md](../README.md#cách-chạy).
 
 ## 5. Chế độ offline
 
-Nếu không gọi được backend, UI tự chuyển sang `mock/state.js` (chế độ "OFFLINE · MOCK", chỉ xem; verdict, hint và auto-solve bị khoá).
+Nếu không gọi được backend, UI tự chuyển sang `mock/state.js` (chế độ "Ngoại tuyến · chỉ xem"; verdict, hint và auto-solve bị khoá).
 Mọi state trong `mock/state.js` phải đúng shape và bất biến của `PublicStateResponse` ở mục 1.
 Không bao giờ đưa đáp án hoặc clue chưa mở vào dữ liệu FrontEnd.
 

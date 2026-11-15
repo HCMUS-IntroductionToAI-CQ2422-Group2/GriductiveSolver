@@ -1,0 +1,130 @@
+/* ==========================================================================
+   GRIDUCTIVE — "Spotlight Noir" design tokens.
+   Every colour, size, radius and layer lives here. No raw hex anywhere else.
+   Dark ("midnight desk") is the default; light is "daytime case file".
+   ========================================================================== */
+
+:root {
+  color-scheme: dark;
+
+  /* Surfaces */
+  --bg: #12141c;
+  --bg-board: #1a1d29;
+  --board-dot: #2a2e40;
+  --surface: #232736;
+  --surface-raised: #2c3144;
+  --surface-sunken: #1b1e2a;
+
+  /* Ink */
+  --ink: #f2ede4;
+  --ink-2: #bdb8c8;
+  --ink-3: #9d99ab;
+  --line: #3d4259;
+  --line-soft: #2f3447;
+  --shadow-solid: #07080d;
+
+  /* Meaning colours */
+  --innocent: #3fd0a4;
+  --innocent-shadow: #1e7a60;
+  --criminal: #ff6b70;
+  --criminal-shadow: #a8262c;
+  --spotlight: #ffc145;
+  --spotlight-shadow: #a8740f;
+  --thread: #ff4d6d;
+  --ai: #a698ff;
+  --ai-shadow: #5243b8;
+  --focus: #7cc4ff;
+
+  /* Text placed on top of a filled meaning colour */
+  --on-innocent: #08130f;
+  --on-criminal: #1c0607;
+  --on-spotlight: #1f1503;
+  --on-ai: #0f0b2a;
+
+  --scrim: #05060ab8;
+  --elev: 0 20px 50px #00000088;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --bg: #f3efe6;
+  --bg-board: #e7dfcf;
+  --board-dot: #d2c8b4;
+  --surface: #fffdf8;
+  --surface-raised: #ffffff;
+  --surface-sunken: #f1ebdf;
+
+  --ink: #1d1b22;
+  --ink-2: #4d4857;
+  --ink-3: #6a6573;
+  --line: #1d1b22;
+  --line-soft: #cfc6b4;
+  --shadow-solid: #1d1b22;
+
+  --innocent: #0f7a5f;
+  --innocent-shadow: #0a4d3c;
+  --criminal: #c22d35;
+  --criminal-shadow: #7e1a20;
+  --spotlight: #e09a0b;
+  --spotlight-shadow: #8a5800;
+  --thread: #d6304f;
+  --ai: #5b48e0;
+  --ai-shadow: #3a2aa6;
+  --focus: #0b63c9;
+
+  --on-innocent: #ffffff;
+  --on-criminal: #ffffff;
+  --on-spotlight: #1f1503;
+  --on-ai: #ffffff;
+
+  --scrim: #1d1b2299;
+  --elev: 0 20px 50px #1d1b2244;
+}
+
+:root {
+  /* Derived tints (follow the theme automatically) */
+  --innocent-tint: color-mix(in srgb, var(--innocent) 14%, var(--surface));
+  --criminal-tint: color-mix(in srgb, var(--criminal) 14%, var(--surface));
+  --spotlight-tint: color-mix(in srgb, var(--spotlight) 16%, var(--surface));
+  --ai-tint: color-mix(in srgb, var(--ai) 14%, var(--surface));
+
+  /* Type */
+  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
+  --font-body: "Be Vietnam Pro", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+
+  --fs-xs: 12px;
+  --fs-sm: 13px;
+  --fs-md: 15px;
+  --fs-lg: 18px;
+  --fs-xl: 24px;
+  --fs-display: clamp(32px, 5vw, 56px);
+
+  /* Spacing (4px steps) */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-7: 32px;
+  --sp-8: 48px;
+
+  /* Radius */
+  --r-sm: 8px;
+  --r-md: 14px;
+  --r-lg: 20px;
+
+  /* Layers */
+  --z-board: 1;
+  --z-threads: 5;
+  --z-card-active: 10;
+  --z-float: 15;
+  --z-rail: 20;
+  --z-sheet: 40;
+  --z-toast: 60;
+  --z-modal: 80;
+
+  --topbar-h: 56px;
+}
