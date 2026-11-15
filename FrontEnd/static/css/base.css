@@ -1,0 +1,137 @@
+/* Reset, typography, focus, shared primitives (buttons, chips, kbd). */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: var(--fs-md);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+body { overflow: hidden; }
+
+h1, h2, h3, p { margin: 0; }
+button { font: inherit; color: inherit; }
+[hidden] { display: none !important; }
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+:focus { outline: none; }
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.icon {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.icon.is-solid { fill: currentColor; stroke-width: 1.5; }
+
+kbd {
+  display: inline-grid;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 5px;
+  border: 1.5px solid currentColor;
+  border-bottom-width: 3px;
+  border-radius: 6px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  line-height: 1;
+  opacity: 0.8;
+}
+
+/* --- Tactile button: solid offset shadow that presses down ---------------- */
+.btn {
+  --btn-bg: var(--surface);
+  --btn-fg: var(--ink);
+  --btn-shadow: var(--shadow-solid);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  min-height: 44px;
+  padding: 0 var(--sp-4);
+  border: 2px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--btn-bg);
+  color: var(--btn-fg);
+  font-weight: 600;
+  font-size: var(--fs-md);
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: 0 4px 0 var(--btn-shadow);
+  transition: transform 0.1s ease, box-shadow 0.1s ease, filter 0.15s ease;
+  user-select: none;
+}
+.btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 5px 0 var(--btn-shadow); filter: brightness(1.06); }
+.btn:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 1px 0 var(--btn-shadow); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.btn-spotlight { --btn-bg: var(--spotlight); --btn-fg: var(--on-spotlight); --btn-shadow: var(--spotlight-shadow); border-color: var(--spotlight-shadow); }
+.btn-ai { --btn-bg: var(--ai); --btn-fg: var(--on-ai); --btn-shadow: var(--ai-shadow); border-color: var(--ai-shadow); }
+.btn-innocent { --btn-bg: var(--innocent); --btn-fg: var(--on-innocent); --btn-shadow: var(--innocent-shadow); border-color: var(--innocent-shadow); }
+.btn-criminal { --btn-bg: var(--criminal); --btn-fg: var(--on-criminal); --btn-shadow: var(--criminal-shadow); border-color: var(--criminal-shadow); }
+.btn-square { width: 44px; padding: 0; }
+.btn-small { min-height: 36px; padding: 0 var(--sp-3); font-size: var(--fs-sm); border-radius: var(--r-sm); box-shadow: 0 3px 0 var(--btn-shadow); }
+
+/* Quiet icon button (top bar tools) */
+.tool {
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.tool:hover { background: var(--surface-raised); color: var(--ink); }
+
+/* Chips */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 1px 8px;
+  border: 1.5px solid var(--line-soft);
+  border-radius: 999px;
+  background: var(--surface-sunken);
+  color: var(--ink-2);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  white-space: nowrap;
+}
+.chip b { font-family: var(--font-mono); font-weight: 700; color: var(--ink-3); }
+.chip.is-innocent { border-color: var(--innocent); background: var(--innocent-tint); color: var(--ink); }
+.chip.is-innocent b { color: var(--innocent); }
+.chip.is-criminal { border-color: var(--criminal); background: var(--criminal-tint); color: var(--ink); }
+.chip.is-criminal b { color: var(--criminal); }
+.chip.is-current { border-color: var(--spotlight); box-shadow: 0 0 0 2px color-mix(in srgb, var(--spotlight) 35%, transparent); }
+
+/* Scrollbars */
+* { scrollbar-width: thin; scrollbar-color: var(--line) transparent; }

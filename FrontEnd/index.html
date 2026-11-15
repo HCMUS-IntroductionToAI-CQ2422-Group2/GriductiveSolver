@@ -1,245 +1,288 @@
 <!doctype html>
-<html lang="en">
+<html lang="vi" data-theme="dark">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#eae5d9">
-  <title>Griductive Solver — Caseboard</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400;1,6..72,500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="static/css/app.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#232736">
+  <title>Griductive — Bảng điều tra</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3E%3Cg fill='%239d99ab'%3E%3Crect x='1' y='1' width='8' height='8' rx='2'/%3E%3Crect x='11' y='1' width='8' height='8' rx='2'/%3E%3Crect x='21' y='1' width='8' height='8' rx='2'/%3E%3Crect x='1' y='11' width='8' height='8' rx='2'/%3E%3Crect x='21' y='11' width='8' height='8' rx='2'/%3E%3Crect x='1' y='21' width='8' height='8' rx='2'/%3E%3Crect x='11' y='21' width='8' height='8' rx='2'/%3E%3Crect x='21' y='21' width='8' height='8' rx='2'/%3E%3C/g%3E%3Crect x='11' y='11' width='8' height='8' rx='2' fill='%23ffc145'/%3E%3C/svg%3E">
+  <script>
+    // Apply the saved theme before first paint (the rest lives in static/js/prefs.js).
+    (function () {
+      var saved = {};
+      try { saved = JSON.parse(localStorage.getItem("griductive:prefs")) || {}; } catch (e) {}
+      var theme = saved.theme || (window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+      document.documentElement.dataset.theme = theme;
+      if (saved.reduceMotion) document.documentElement.classList.add("reduce-motion");
+    })();
+  </script>
+  <link rel="stylesheet" href="static/css/fonts.css">
+  <link rel="stylesheet" href="static/css/tokens.css">
+  <link rel="stylesheet" href="static/css/base.css">
+  <link rel="stylesheet" href="static/css/layout.css">
+  <link rel="stylesheet" href="static/css/components.css">
+  <link rel="stylesheet" href="static/css/motion.css">
 </head>
 <body>
-  <div class="app-shell" id="app-shell">
-    <div class="offline-banner" id="offline-banner" role="status" hidden>
-      <span class="offline-icon" aria-hidden="true">!</span>
-      <p><strong>Backend unreachable.</strong> Showing read-only demo data — verdicts, hints and Auto solve need the live API.</p>
-      <button class="button button-dossier button-small" id="retry-btn" type="button">Retry connection</button>
-    </div>
+  <div class="app" id="app">
+    <!-- ================= TOP BAR ================= -->
+    <header class="topbar">
+      <a class="brand" href="./" aria-label="Griductive">
+        <svg class="brand-mark" viewBox="0 0 30 30" aria-hidden="true">
+          <rect x="1" y="1" width="8" height="8" rx="2"/><rect x="11" y="1" width="8" height="8" rx="2"/><rect x="21" y="1" width="8" height="8" rx="2"/>
+          <rect x="1" y="11" width="8" height="8" rx="2"/><rect class="lit" x="11" y="11" width="8" height="8" rx="2"/><rect x="21" y="11" width="8" height="8" rx="2"/>
+          <rect x="1" y="21" width="8" height="8" rx="2"/><rect x="11" y="21" width="8" height="8" rx="2"/><rect x="21" y="21" width="8" height="8" rx="2"/>
+        </svg>
+        <span class="brand-text">Griductive</span>
+      </a>
 
-    <main class="workspace" id="workspace">
-      <!-- MAIN INVESTIGATION BOARD -->
-      <section class="main-panel" aria-label="Investigation board">
-        <div class="dossier-heading">
-          <div class="header-identity">
-            <a class="brand" href="#" aria-label="Griductive Solver home">
-              <span class="brand-seal" aria-hidden="true">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <rect x="3" y="3" width="4.5" height="4.5" rx="1" />
-                  <rect x="9.75" y="3" width="4.5" height="4.5" rx="1" />
-                  <rect x="16.5" y="3" width="4.5" height="4.5" rx="1" />
-                  <rect x="3" y="9.75" width="4.5" height="4.5" rx="1" />
-                  <rect x="9.75" y="9.75" width="4.5" height="4.5" rx="1" />
-                  <rect x="16.5" y="9.75" width="4.5" height="4.5" rx="1" />
-                  <rect x="3" y="16.5" width="4.5" height="4.5" rx="1" />
-                  <rect x="9.75" y="16.5" width="4.5" height="4.5" rx="1" />
-                  <rect x="16.5" y="16.5" width="4.5" height="4.5" rx="1" />
-                </svg>
-              </span>
-              <div class="brand-text">
-                <span class="brand-title">Griductive</span>
-                <span class="brand-sub">Think clearly. Solve logically.</span>
-              </div>
-            </a>
-            <span class="connection-status connection-stamp" title="Backend connection status">
-              <i class="stamp-dot"></i>
-              <span id="connection-label">CONNECTING…</span>
-            </span>
-          </div>
-          <div class="investigation-heading-row">
-            <div class="investigation-title">
-              <div class="dossier-tags">
-                <span class="dossier-tag-label">CONFIDENTIAL</span>
-                <span class="dossier-tag-sep">//</span>
-                <span class="dossier-tag-id">CASE INVESTIGATION</span>
-              </div>
-              <h1>Who’s involved?</h1>
-              <p>Every clue is always true. Make a verdict only when the clues force it.</p>
-            </div>
-            <div class="actions-zone">
-              <button class="button button-dark" id="hint-btn" type="button" aria-label="Hint" title="Hint (Press H)">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-1 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5" />
-                  <path d="M9 18h6" />
-                  <path d="M10 22h4" />
-                </svg>
-                <span>Hint</span>
-                <kbd>H</kbd>
-              </button>
-              <button class="button button-outline" id="autosolve-btn" type="button" aria-label="Auto solve" title="Auto solve with SAT Solver">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <polygon points="6 3 20 12 6 21 6 3" />
-                </svg>
-                <span>Auto solve</span>
-              </button>
-              <button class="button button-ai-toggle" id="ai-steps-btn" type="button" aria-expanded="false" aria-controls="ai-steps-panel" title="Toggle AI Reasoning Journal" aria-label="AI Steps">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <line x1="3" y1="6" x2="21" y2="6" />
-                  <line x1="3" y1="12" x2="21" y2="12" />
-                  <line x1="3" y1="18" x2="21" y2="18" />
-                </svg>
-                <span>AI Steps</span>
-                <span class="ai-badge" id="ai-steps-badge" hidden>0</span>
-              </button>
-              <button class="button button-icon-only button-outline" id="restart-btn" type="button" aria-label="Restart" title="Restart case to initial state">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-                  <path d="M3 3v5h5" />
-                </svg>
-                <span class="sr-only">Restart</span>
-              </button>
-            </div>
-          </div>
-          <div class="case-module">
-            <div class="case-zone">
-              <div class="case-meta">
-                <span class="case-eyebrow">Current case</span>
-                <strong id="case-name" class="case-title">—</strong>
-              </div>
-              <button class="button button-dossier button-small" id="load-case" type="button" title="Load the next case" aria-label="Load the next case">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <path d="M21 2v6h-6" />
-                  <path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
-                  <path d="M3 22v-6h6" />
-                  <path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
-                </svg>
-                <span>New case</span>
-              </button>
-            </div>
-            <div class="topbar-status">
-              <span class="status-proven"><strong id="progress-label">0 / 0</strong> solved</span>
-              <div class="progress-meter" aria-hidden="true">
-                <div class="progress-bar-fill" id="progress-bar"></div>
-              </div>
-              <div class="play-stats">
-                <span>Mistakes <b id="mistake-count">0</b></span>
-                <span>Hints <b id="hint-count">0</b></span>
-              </div>
-            </div>
-          </div>
+      <div class="case-picker">
+        <button class="case-btn" id="case-btn" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="case-menu" title="Chọn vụ án" disabled>
+          <span class="case-name" id="case-name">Đang kết nối…</span>
+          <span class="case-meta" id="case-meta"></span>
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+        <div class="menu" id="case-menu" role="listbox" aria-label="Chọn vụ án" hidden></div>
+      </div>
+
+      <div class="topbar-stats">
+        <button class="offline-chip" id="offline-chip" type="button" title="Không kết nối được backend. Bấm để thử lại." hidden>
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18M8.5 16.5a5 5 0 0 1 7 0M5 13a10 10 0 0 1 4-2.6M19 13a10 10 0 0 0-5-3M12 20h.01"/></svg>
+          <span>Ngoại tuyến · chỉ xem</span>
+        </button>
+        <span class="stat stat-timer" id="stat-timer" title="Thời gian">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+          <span class="sr-only">Thời gian</span><b>00:00</b>
+        </span>
+        <button class="tool pause-btn" id="pause-btn" type="button" aria-label="Tạm dừng" title="Tạm dừng (P)" disabled></button>
+        <span class="stat stat-mistakes" id="stat-mistakes" title="Lỗi">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+          <span class="sr-only">Lỗi</span><b>0</b>
+        </span>
+        <span class="stat stat-hints" id="stat-hints" title="Gợi ý đã dùng">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.8.8 1.3 1.6 1.5 2.5h5c.2-.9.7-1.7 1.5-2.5A6 6 0 0 0 12 3z"/></svg>
+          <span class="sr-only">Gợi ý đã dùng</span><b>0</b>
+        </span>
+      </div>
+
+      <div class="topbar-tools">
+        <button class="tool" id="help-btn" type="button" aria-label="Cách chơi" title="Cách chơi (?)">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1 .9-1 1.7M12 17h.01"/></svg>
+        </button>
+        <button class="tool" id="theme-btn" type="button" aria-label="Đổi giao diện sáng / tối" title="Đổi giao diện sáng / tối"></button>
+        <button class="tool" id="settings-btn" type="button" aria-label="Cài đặt" title="Cài đặt">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <main class="stage">
+      <!-- ================= BOARD ================= -->
+      <section class="board-area" aria-label="Bảng điều tra">
+        <div class="progress">
+          <div class="progress-track" id="progress-track" aria-hidden="true"></div>
+          <span class="progress-label" id="progress-label"></span>
         </div>
 
-        <section class="win-panel" id="win-panel" aria-live="polite" hidden>
-          <div class="win-seal" aria-hidden="true">✓</div>
-          <div class="win-copy">
-            <span class="win-eyebrow">JUSTICE SERVED</span>
-            <strong id="win-title">Case closed</strong>
-            <p id="win-body">Every character has a proven verdict, without guessing.</p>
-          </div>
-          <div class="win-stats">
-            <div class="win-stat-box">
-              <span class="stat-title">Mistakes</span>
-              <b id="win-mistakes">0</b>
-            </div>
-            <div class="win-stat-box">
-              <span class="stat-title">Hints</span>
-              <b id="win-hints">0</b>
+        <div class="board-stage is-loading" id="board-stage">
+          <div class="board-fit">
+            <div class="board" id="board" role="grid" aria-label="Bảng nghi phạm" data-size="3">
+              <span class="axis"></span><span class="axis">A</span><span class="axis">B</span><span class="axis">C</span>
+              <span class="axis">1</span><div class="card is-skeleton"></div><div class="card is-skeleton"></div><div class="card is-skeleton"></div>
+              <span class="axis">2</span><div class="card is-skeleton"></div><div class="card is-skeleton"></div><div class="card is-skeleton"></div>
+              <span class="axis">3</span><div class="card is-skeleton"></div><div class="card is-skeleton"></div><div class="card is-skeleton"></div>
             </div>
           </div>
-          <div class="win-actions">
-            <button class="button button-outline" id="win-again" type="button">Play again</button>
-            <button class="button button-dark" id="win-next" type="button">Next case</button>
-          </div>
-        </section>
+          <svg class="threads" id="threads" aria-hidden="true"></svg>
+          <div class="spotlight" id="spotlight" aria-hidden="true" hidden><span class="spotlight-tag">AI</span></div>
+          <div class="clue-pop" id="clue-pop" role="tooltip" hidden></div>
+          <div class="bubble" id="bubble" hidden></div>
 
-        <!-- BOARD-INTEGRATED PUBLIC CLUE REGION (CRITICAL REQUIREMENT) -->
-        <section class="public-evidence-banner" id="public-evidence-banner" aria-label="Public starting evidence" hidden>
-          <div class="public-evidence-head">
-            <div class="public-evidence-title">
-              <span class="public-bullet">◈</span>
-              <span class="eyebrow">PUBLIC STARTING CLUES</span>
-              <span class="public-count-badge" id="public-clues-count">0</span>
+          <section class="pause" id="pause" aria-label="Đã tạm dừng" hidden>
+            <div class="pause-card">
+              <svg class="icon pause-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg>
+              <h2>Đã tạm dừng</h2>
+              <p>Đồng hồ đã dừng. Bảng và hồ sơ được che lại cho tới khi bạn quay lại.</p>
+              <button class="btn btn-spotlight" id="pause-resume" type="button">
+                <svg class="icon is-solid" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12-7.5z"/></svg>
+                <span>Tiếp tục</span><kbd>P</kbd>
+              </button>
             </div>
-            <small class="public-evidence-desc">Verified public initial clues established prior to investigation.</small>
-          </div>
-          <div class="public-evidence-list" id="public-evidence-list"></div>
-        </section>
+          </section>
 
-        <div class="board-toolbar">
-          <div class="board-specs">
-            <span class="board-symbol">⌁</span>
-            <div class="board-spec-copy">
-              <strong>Character board</strong>
-              <small><span id="board-size">3 × 3</span> grid <i>·</i> <span id="known-count">0 revealed</span></small>
+          <section class="win" id="win" aria-label="Kết quả" hidden>
+            <div class="win-card">
+              <button class="tool win-close" id="win-close" type="button" aria-label="Đóng để xem bảng">
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+              </button>
+              <div class="win-stamp" id="win-stamp">Vụ án khép lại</div>
+              <div class="win-stars" id="win-stars" role="img"></div>
+              <p class="win-note" id="win-note"></p>
+              <div class="win-stats" id="win-stats">
+                <div class="win-stat"><span>Thời gian</span><b id="win-time">00:00</b></div>
+                <div class="win-stat"><span>Lỗi</span><b id="win-mistakes">0</b></div>
+                <div class="win-stat"><span>Gợi ý</span><b id="win-hints">0</b></div>
+              </div>
+              <div class="win-actions">
+                <button class="btn" id="win-again" type="button">Chơi lại</button>
+                <button class="btn btn-spotlight" id="win-next" type="button">Vụ án tiếp theo →</button>
+              </div>
             </div>
-          </div>
-          <div class="board-hint-row">
-            <span class="caption-hint">
-              Select a character, then press <kbd>I</kbd> Innocent or <kbd>C</kbd> Criminal ·
-              <button type="button" class="link-button" id="shortcuts-btn">Shortcuts <kbd>?</kbd></button>
-            </span>
-          </div>
-          <div class="playback-bar" id="playback-bar" hidden>
-            <span class="playback-dot" aria-hidden="true"></span>
-            <span id="playback-label">Auto solve</span>
-            <button class="button button-dossier button-small" id="playback-pause" type="button">Pause</button>
-            <button class="button button-dark button-small" id="playback-skip" type="button">Skip</button>
-          </div>
+          </section>
         </div>
 
-        <div class="board-wrap">
-          <div class="board" id="board" aria-label="Character grid"></div>
+        <div class="actions" id="actions">
+          <button class="btn btn-spotlight" id="hint-btn" type="button" disabled>
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.8.8 1.3 1.6 1.5 2.5h5c.2-.9.7-1.7 1.5-2.5A6 6 0 0 0 12 3z"/></svg>
+            <span>Gợi ý</span><kbd>H</kbd>
+          </button>
+          <button class="btn btn-ai" id="auto-btn" type="button" disabled>
+            <svg class="icon is-solid" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12-7.5z"/></svg>
+            <span>AI tự giải</span>
+          </button>
+          <button class="btn btn-square" id="restart-btn" type="button" aria-label="Chơi lại từ đầu" title="Chơi lại từ đầu" disabled>
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.6-5.9L4 8.5M4 3.5v5h5"/></svg>
+          </button>
         </div>
 
-        <div class="board-caption">
-          <span class="legend-item"><i class="legend-marker unrevealed"></i> Unrevealed</span>
-          <span class="legend-item"><i class="legend-marker innocent"></i> Proven: Innocent</span>
-          <span class="legend-item"><i class="legend-marker criminal"></i> Proven: Criminal</span>
-          <span class="legend-item"><i class="legend-marker mentioned"></i> Mentioned by clue</span>
+        <div class="playback" id="playback" role="group" aria-label="Điều khiển phát lại AI" hidden>
+          <span class="playback-label" id="pb-label" aria-live="off"></span>
+          <button class="btn btn-small btn-square" id="pb-start" type="button" aria-label="Phát lại từ đầu" title="Phát lại từ đầu">
+            <svg class="icon is-solid" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 5v14L8 12zM6 5v14"/></svg>
+          </button>
+          <button class="btn btn-small btn-square btn-ai" id="pb-toggle" type="button"></button>
+          <button class="btn btn-small btn-square" id="pb-next" type="button" aria-label="Bước tiếp theo" title="Bước tiếp theo">
+            <svg class="icon is-solid" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5v14l10-7zM18 5v14"/></svg>
+          </button>
+          <button class="btn btn-small btn-square" id="pb-end" type="button" aria-label="Bỏ qua đến cuối" title="Bỏ qua đến cuối">
+            <svg class="icon is-solid" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5v14l8-7zM12 5v14l8-7z"/></svg>
+          </button>
+          <button class="btn btn-small btn-spotlight" id="pb-takeover" type="button" title="Dừng AI tại bước này và tự chơi tiếp">Tự chơi tiếp</button>
+          <div class="speed" role="group" aria-label="Tốc độ phát lại">
+            <button type="button" data-speed="0.5">0.5×</button>
+            <button type="button" data-speed="1">1×</button>
+            <button type="button" data-speed="2">2×</button>
+          </div>
         </div>
-
-        <div class="toast" id="toast" role="status" aria-live="polite"></div>
       </section>
 
-      <!-- AI REASONING JOURNAL (COLLAPSIBLE RIGHT PANEL - CLOSED BY DEFAULT) -->
-      <aside class="ai-steps-panel" id="ai-steps-panel" aria-label="AI Reasoning Journal" hidden>
-        <div class="ai-panel-head">
-          <div class="ai-panel-title-wrap">
-            <span class="eyebrow">FORMAL PROOF</span>
-            <h2>AI Reasoning Journal</h2>
-            <p class="ai-panel-sub">Trace the SAT solver's logical deduction steps in real time.</p>
-          </div>
-          <button class="ai-panel-close" id="ai-steps-close" type="button" aria-label="Close journal" title="Close journal (Esc)">✕</button>
+      <!-- ================= RAIL ================= -->
+      <aside class="rail" aria-label="Hồ sơ vụ án và nhật ký AI">
+        <div class="rail-tabs" role="tablist">
+          <button class="rail-tab" id="tab-clues" data-tab="clues" type="button" role="tab" aria-controls="panel-clues" aria-selected="true">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+            <span>Hồ sơ</span><span class="count">0</span>
+          </button>
+          <button class="rail-tab" id="tab-ai" data-tab="ai" type="button" role="tab" aria-controls="panel-ai" aria-selected="false" tabindex="-1">
+            <svg class="icon is-solid" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z"/></svg>
+            <span>AI</span><span class="count" hidden>0</span>
+          </button>
         </div>
-        <div class="ai-steps-feed" id="ai-steps-feed" aria-live="polite">
-          <div class="ai-empty-state">
-            <span class="ai-empty-icon">☷</span>
-            <strong>No deduction steps recorded yet</strong>
-            <p>Run <em>Auto solve</em> or request a <em>Hint</em> to trace the solver's deductive reasoning chain.</p>
+
+        <div class="rail-panel" id="panel-clues" role="tabpanel" aria-labelledby="tab-clues">
+          <div class="rail-note" id="clue-tools" hidden>
+            <span id="clue-note"></span>
+            <label class="switch"><input type="checkbox" id="hide-spent"><span>Ẩn manh mối đã dùng hết</span></label>
+          </div>
+          <div id="clue-list" style="display: contents"></div>
+          <div class="empty" id="clue-empty">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+            <strong>Chưa có manh mối nào</strong>
+            Kết luận đúng một nghi phạm để mở lời khai của họ.
           </div>
         </div>
-        <div class="ai-panel-footer">
-          <span class="ai-footer-dot"></span>
-          <p>Every deduction step is formally verified by propositional SAT solving.</p>
+
+        <div class="rail-panel" id="panel-ai" role="tabpanel" aria-labelledby="tab-ai" hidden>
+          <div class="journal-base" id="journal-base" hidden>
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
+            <span>Các manh mối đang mở nhất quán với nhau. AI kiểm tra từng ô bằng bộ giải SAT (DPLL).</span>
+          </div>
+          <div id="journal-list" style="display: contents"></div>
+          <div class="empty" id="journal-empty">
+            <svg class="icon is-solid" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z"/></svg>
+            <strong>Chưa có bước suy luận nào</strong>
+            Bấm “AI tự giải” hoặc “Gợi ý” để xem bộ giải SAT (DPLL) kết luận từng ô như thế nào.
+          </div>
         </div>
       </aside>
     </main>
 
-    <footer class="app-footer">
-      <div class="footer-left">
-        <span class="footer-brand">GRIDUCTIVE SOLVER</span>
-        <span class="footer-sep">·</span>
-        <span class="footer-meta">CSC14003 · PROJECT 2 // PROPOSITIONAL LOGIC SOLVER</span>
-      </div>
-      <div class="footer-right">
-        <i class="footer-status-dot"></i>
-        <span id="footer-mode">Connecting to backend…</span>
-      </div>
-    </footer>
+    <!-- Verdict buttons for the selected suspect (popover on desktop, bottom bar on phones). -->
+    <div class="verdict-pop" id="verdict-pop" role="group" hidden>
+      <button class="btn btn-innocent" type="button" data-verdict="innocent">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
+        <span>Vô tội</span><kbd>I</kbd>
+      </button>
+      <button class="btn btn-criminal" type="button" data-verdict="criminal">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        <span>Tội phạm</span><kbd>C</kbd>
+      </button>
+    </div>
   </div>
 
-  <!-- SHORTCUTS & NOTICE MODAL -->
-  <div class="modal-backdrop" id="modal-backdrop" hidden>
-    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
-      <button class="modal-close" id="modal-close" aria-label="Close">✕</button>
-      <span class="modal-mark">❖</span>
-      <h2 id="modal-title">Keyboard shortcuts</h2>
-      <p id="modal-copy"></p>
-      <button class="button button-dark" id="modal-ok" type="button">Got it</button>
-    </section>
-  </div>
+  <div class="toasts" id="toasts"></div>
+  <div class="sr-only" id="live" aria-live="polite"></div>
 
-  <script type="module" src="static/js/app.js"></script>
+  <!-- ================= DIALOGS ================= -->
+  <dialog id="dlg-help" aria-labelledby="help-title">
+    <div class="dlg-head">
+      <h2 id="help-title">Cách chơi</h2>
+      <button class="tool" type="button" data-close aria-label="Đóng"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <div class="dlg-body" id="help-body"></div>
+    <div class="dlg-foot">
+      <button class="btn" type="button" data-tutorial>Xem lại hướng dẫn</button>
+      <button class="btn btn-spotlight" type="button" data-close autofocus>Đã hiểu</button>
+    </div>
+  </dialog>
+
+  <dialog id="dlg-settings" aria-labelledby="settings-title">
+    <div class="dlg-head">
+      <h2 id="settings-title">Cài đặt</h2>
+      <button class="tool" type="button" data-close aria-label="Đóng"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <div class="dlg-body" id="settings-body"></div>
+    <div class="dlg-foot">
+      <button class="btn" type="button" id="settings-help">Cách chơi &amp; phím tắt</button>
+      <button class="btn btn-spotlight" type="button" data-close>Xong</button>
+    </div>
+  </dialog>
+
+  <dialog id="dlg-message" aria-labelledby="msg-title">
+    <div class="dlg-head">
+      <h2 id="msg-title"></h2>
+    </div>
+    <div class="dlg-body">
+      <p id="msg-text"></p>
+      <p class="error-code" id="msg-code" hidden></p>
+    </div>
+    <div class="dlg-foot">
+      <button class="btn" type="button" id="msg-retry" hidden>Thử lại</button>
+      <button class="btn btn-spotlight" type="button" data-close autofocus>Đã hiểu</button>
+    </div>
+  </dialog>
+
+  <dialog id="dlg-tutorial" aria-labelledby="tut-title">
+    <div class="dlg-head">
+      <h2 id="tut-title">Hướng dẫn nhanh</h2>
+      <div class="tut-steps" id="tut-dots" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+    </div>
+    <div class="dlg-body">
+      <p class="tut-text" id="tut-text"></p>
+      <div class="tut-clues" id="tut-clues"></div>
+      <div class="tut-board" id="tut-board" role="group" aria-label="Bảng hướng dẫn"></div>
+      <div class="tut-verdict" id="tut-verdict" role="group" aria-label="Phán quyết">
+        <button class="btn btn-innocent" type="button" data-verdict="innocent">Vô tội</button>
+        <button class="btn btn-criminal" type="button" data-verdict="criminal">Tội phạm</button>
+      </div>
+      <p class="tut-msg" id="tut-msg" role="status"></p>
+    </div>
+    <div class="dlg-foot">
+      <button class="btn" type="button" id="tut-skip" data-close>Bỏ qua</button>
+      <button class="btn btn-spotlight" type="button" id="tut-next">Tiếp tục</button>
+    </div>
+  </dialog>
+
+  <script type="module" src="static/js/main.js"></script>
 </body>
 </html>
