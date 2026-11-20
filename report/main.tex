@@ -1,0 +1,101 @@
+% !TEX program = pdflatex
+% ==============================================================================
+% BIỂU MẪU BÁO CÁO VÀ BÀI TẬP KHOA CÔNG NGHỆ THÔNG TIN - ĐH KHTN (ĐHQG-HCM)
+% Biên dịch bằng: PDFLaTeX
+% ==============================================================================
+\documentclass[12pt,a4paper]{article}
+\usepackage{scrextend}
+\changefontsizes{13pt}
+
+% Nạp gói cấu hình chuẩn nhận diện FIT - HCMUS
+\usepackage{fit_hcmus}
+\setcounter{secnumdepth}{2}
+\setcounter{tocdepth}{2}
+
+% ==============================================================================
+% KHAI BÁO THÔNG TIN BÀI TẬP / ĐỒ ÁN
+% ==============================================================================
+\courseid{CSC14003}
+\coursename{Cơ Sở Trí Tuệ Nhân Tạo}
+\reportsubtitle{BÁO CÁO ĐỒ ÁN MÔN HỌC}
+\title{Đồ án Griductive Solver}
+\instructor{TS. Bùi Tiến Lên}
+\labinstructor{TA. Nguyễn Thanh Tình}
+\classid{CQ2024/22}
+\academicyear{Học kỳ I, 2026 - 2027}
+
+% Khai báo danh sách sinh viên thực hiện
+\author{
+    \centering
+    \begin{tabular}{ll}
+        Ngô Hoàng Minh & - 24120381 \\
+        Nguyễn Xuân Lộc & - 24120369 \\
+        Đỗ Ngọc Hải & - 24120300 \\
+        Nguyễn Thành Bảo & - 24120023 \\
+        Phan Nhật Minh & - 24120384 \\
+    \end{tabular}
+}
+
+% ==============================================================================
+% CHỌN CHẾ ĐỘ HIỂN THỊ (PROJECT HOẶC ASSIGNMENT/LAB)
+% Đặt true nếu là Báo cáo đồ án (có trang bìa riêng, mục lục)
+% Đặt false nếu là Bài tập cá nhân / Lab ngắn gọn (dùng header đầu trang 1)
+% ==============================================================================
+\newif\ifisprojectreport
+\isprojectreporttrue % <--- ĐỔI THÀNH \isprojectreportfalse CHO BÀI TẬP NGẮN
+
+\begin{document}
+
+\ifisprojectreport
+    % --- CHẾ ĐỘ 1: BÁO CÁO ĐỒ ÁN MÔN HỌC (PROJECT REPORT) ---
+    % Avoid reusing the first page anchor for the unnumbered cover.
+    \hypersetup{pageanchor=false}
+    \makecoverpage
+    \hypersetup{pageanchor=true}
+    
+    % Trang Mục lục (chỉ hiển thị số trang La Mã ở dưới, không có header)
+    \pagestyle{plain}
+    \pagenumbering{roman}
+    \input{sections/front_matter/abstract}
+    \newpage
+    \tableofcontents
+    \newpage
+    % \listoffigures % Bỏ comment nếu bài viết có nhiều hình ảnh
+    % \listoftables  % Bỏ comment nếu bài viết có nhiều bảng biểu
+    \input{sections/front_matter/notation}
+    \newpage
+    
+    % Bắt đầu nội dung chính: Bật Header chuẩn và đánh số trang Ả Rập
+    \pagestyle{fancy}
+    \pagenumbering{arabic}
+\else
+    % --- CHẾ ĐỘ 2: BÀI TẬP THỰC HÀNH / LAB NGẮN (ASSIGNMENT / LAB) ---
+    \pagestyle{fancy}
+    \makeassignmentheader
+    \pagenumbering{arabic}
+\fi
+
+% ==============================================================================
+% CÁC CHƯƠNG MỤC NỘI DUNG (SECTIONS)
+% ==============================================================================
+\input{sections/01_introduction}
+\input{sections/02_problem_formulation}
+\input{sections/03_game_engine}
+\input{sections/04_game_agent}
+\input{sections/05_ui_api}
+\input{sections/06_map_validation}
+\input{sections/07_experiments}
+\input{sections/08_conclusion}
+% ==============================================================================
+% TÀI LIỆU THAM KHẢO (BIBLIOGRAPHY)
+% ==============================================================================
+\newpage
+\bibliographystyle{plain}
+% Note: Thay các mục mẫu trong references.bib bằng nguồn thực tế đã dùng và trích dẫn bằng \cite{...} trong nội dung.
+\bibliography{references}
+
+\newpage
+\appendix
+\input{sections/09_appendix}
+
+\end{document}
