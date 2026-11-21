@@ -292,7 +292,8 @@
           "NOT_PROVABLE",
           "CONTRADICTED",
           "ALREADY_PROVED",
-          "INVALID_CELL"
+          "INVALID_CELL",
+          "INCONSISTENT"
         ],
         "title": "SubmitOutcome",
         "type": "string"

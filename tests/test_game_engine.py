@@ -6,8 +6,10 @@ from BackEnd.GameEngine.GameObject.constraints import (
     Comparison,
     Count,
     CountConstraint,
+    Fact,
 )
 from BackEnd.GameEngine.GameObject.objects import PuzzleDefinition, Verdict
+from BackEnd.LogicAgent.dpll_checker import DPLLChecker
 from tests.helpers import make_board, make_clue
 
 # 2x2 board:  0 1
@@ -111,6 +113,33 @@ def test_submit_invalid_cell(engine):
     assert result.outcome is SubmitOutcome.INVALID_CELL
     assert result.verdict == Verdict(99, True)
     assert engine.get_public_state() == before
+
+
+@pytest.mark.parametrize("checker_cls", (BruteForceChecker, DPLLChecker), ids=("brute-force", "dpll"))
+def test_submit_inconsistent_when_public_clues_contradict(checker_cls):
+    clues = (
+        make_clue(1, Fact(0, True)),
+        make_clue(2, Fact(0, False)),
+        make_clue(3, Fact(1, False), source_cell_id=0),
+    )
+    puzzle = PuzzleDefinition(
+        id="inconsistent",
+        board=BOARD,
+        clues=clues,
+        solution=SOLUTION,
+        initial_verdicts=(),
+    )
+    engine = GameEngine(puzzle, checker_cls())
+    before = engine.get_public_state()
+
+    for cell_id in (0, 1):
+        for status in (True, False):
+            result = engine.submit_verdict(cell_id, status)
+            assert result.outcome is SubmitOutcome.INCONSISTENT
+            assert result.verdict == Verdict(cell_id, status)
+            assert result.public_state == before
+            assert engine.get_public_state() == before
+            assert clue_ids(result.public_state) == {1, 2}
 
 
 def test_revealed_clue_makes_new_cell_provable(engine):

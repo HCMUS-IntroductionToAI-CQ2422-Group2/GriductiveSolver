@@ -88,6 +88,7 @@ DeductionStep = { step: int, active_clue_ids: int[], sat_queries: SatQuery[],
 | `NOT_PROVABLE` | Cả hai khả năng vẫn còn mở. | Toast, tính là một lỗi. |
 | `CONTRADICTED` | Verdict trái với các clue đang mở. | Toast, tính là một lỗi. |
 | `ALREADY_PROVED` | Ô này đã có verdict. | Toast. |
+| `INCONSISTENT` | Các clue đang mở mâu thuẫn nhau (cả hai khả năng đều vô nghiệm). | Hộp thông báo mâu thuẫn, không tính lỗi. |
 
 ### `GET /api/game/hint`
 
