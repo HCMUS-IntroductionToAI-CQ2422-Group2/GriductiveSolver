@@ -1,3 +1,55 @@
 \subsection{Game Object và cấu trúc dữ liệu bàn chơi}
-% Note: Trình bày Cell, Board, Verdict, PuzzleDefinition và các truy vấn hàng, cột, hàng xóm, nghề nghiệp.
+\label{subsec:game_objects}
 
+Các đối tượng nền tảng của trò chơi được định nghĩa trong module \path{GameObject/objects.py} bằng \texttt{dataclass(frozen=True)}. Cách biểu diễn này cho phép khai báo rõ các trường dữ liệu và ngăn việc gán lại thuộc tính sau khi khởi tạo. Các tập hợp có thứ tự như hàng, bàn cờ, danh sách manh mối và đáp án được lưu bằng \texttt{tuple}. Dữ liệu mô tả màn chơi vì vậy được tách khỏi trạng thái thay đổi trong từng lượt chơi.
+
+\paragraph{Ô và nhân vật (\texttt{Cell}).}
+Mỗi ô chứa thông tin của một nhân vật với bốn thuộc tính: \texttt{id} là mã định danh kiểu số nguyên; \texttt{coordinates} là cặp tọa độ $(r,c)$; \texttt{character\_name} là tên hiển thị; và \texttt{profession} là nghề nghiệp. Hàng và cột trong mã nguồn đều được đánh số từ $0$. Khi hiển thị cho người chơi, cột được chuyển thành chữ cái và hàng được đánh số từ $1$; chẳng hạn tọa độ $(1,2)$ tương ứng với ô C2.
+
+\texttt{Cell} không chứa thuộc tính cho biết nhân vật là tội phạm hay vô tội. Tên và nghề nghiệp cũng không tự quyết định trạng thái của nhân vật; nghề nghiệp chỉ tham gia suy luận khi được dùng để xác định một vùng trong manh mối. Việc không đặt đáp án trong \texttt{Cell} cho phép chia sẻ cấu trúc bàn chơi với tác tử và giao diện mà không kèm theo trạng thái ẩn.
+
+\paragraph{Bàn chơi (\texttt{Board}).}
+Thuộc tính \texttt{cells} có kiểu \texttt{tuple[tuple[Cell, ...], ...]}, trong đó mỗi tuple bên trong là một hàng. Ô ở hàng $r$, cột $c$ được truy cập qua \texttt{board.cells[r][c]}. Ba thuộc tính tính toán \texttt{height}, \texttt{width} và \texttt{cell\_count} lần lượt trả về số hàng, số cột và tổng số ô, với
+\[
+    \texttt{cell\_count}=\texttt{height}\times\texttt{width}.
+\]
+Bộ tạo bàn chơi dùng chung của các map hiện tại gán mã ô theo thứ tự hàng rồi cột: $\mathrm{id}=r\times\texttt{width}+c$. Đây là quy ước của dữ liệu map, còn lớp \texttt{Cell} vẫn lưu mã định danh và tọa độ thành hai trường riêng. Tính hợp lệ của lưới, bao gồm bàn không rỗng, các hàng cùng độ dài và tọa độ khớp vị trí trong \texttt{cells}, được kiểm tra ở bước kiểm chứng màn chơi.
+
+\paragraph{Phán quyết (\texttt{Verdict}).}
+Một phán quyết gồm \texttt{cell\_id} để chỉ ô cần xét và \path{is_criminal} để biểu diễn trạng thái: \texttt{True} là tội phạm, \texttt{False} là vô tội. Cùng một kiểu dữ liệu được dùng cho phán quyết gửi đến Engine, giả định trong truy vấn kiểm tra ràng buộc, đáp án của màn chơi và các trạng thái đã biết ban đầu. Bản thân một đối tượng \texttt{Verdict} chỉ biểu diễn một khẳng định; việc tạo đối tượng không có nghĩa khẳng định đó đã được chứng minh hoặc chấp nhận.
+
+\paragraph{Manh mối (\texttt{Clue}).}
+Mỗi manh mối gồm mã \texttt{id}, mã nhân vật sở hữu \path{source_cell_id}, ràng buộc có cấu trúc \texttt{constraint} và lời mô tả \path{description_nl}. Trường \path{source_cell_id} liên kết lời khai với ô được mở; giá trị \texttt{None} biểu diễn manh mối công khai ngay từ đầu. Phần văn bản phục vụ hiển thị, trong khi phần ràng buộc phục vụ kiểm tra ngữ nghĩa và mã hóa CNF. Các kiểu ràng buộc được trình bày riêng ở mục tiếp theo.
+
+\paragraph{Định nghĩa màn chơi (\texttt{PuzzleDefinition}).}
+Đối tượng này tập hợp toàn bộ dữ liệu tĩnh của một màn chơi qua năm trường:
+\begin{itemize}
+    \item \texttt{id}: mã màn chơi dùng để tra cứu và nạp màn.
+    \item \texttt{board}: cấu trúc bàn chơi và thông tin các nhân vật.
+    \item \texttt{clues}: tuple chứa toàn bộ manh mối, bao gồm cả những manh mối chưa mở.
+    \item \texttt{solution}: tuple các \texttt{Verdict} mô tả đáp án đầy đủ.
+    \item \texttt{initial\_verdicts}: tuple các \texttt{Verdict} được công khai khi bắt đầu hoặc chơi lại.
+\end{itemize}
+Game Engine giữ \texttt{PuzzleDefinition} để quản lý màn chơi; tác tử chỉ nhận trạng thái công khai do Engine cung cấp. Đáp án đầy đủ được dùng trong kiểm chứng dữ liệu màn chơi, còn việc chấp nhận một nước đi dựa trên các ràng buộc công khai. Các phán quyết mới được chứng minh không ghi ngược vào \texttt{solution} hay \texttt{initial\_verdicts}, mà được lưu trong trạng thái ván chơi.
+
+\paragraph{Các truy vấn vùng trên bàn chơi.}
+Các hàm chọn vùng được cài đặt trong module \path{GameObject/board_utils.py} và đều trả về tuple mã ô. Nhờ đó, các manh mối có thể tham chiếu cùng một dạng dữ liệu đích mà không cần tự cài đặt lại cách duyệt bàn cờ.
+
+\begin{table}[htbp]
+    \centering
+    \caption{Các hàm truy vấn vùng trên bàn chơi}
+    \label{tab:board_region_queries}
+    \renewcommand{\arraystretch}{1.2}
+    \begin{tabularx}{\textwidth}{lX}
+        \toprule
+        \textbf{Hàm} & \textbf{Kết quả} \\
+        \midrule
+        \texttt{row\_ids(board, row)} & Mã các ô thuộc hàng có chỉ số \texttt{row}. \\
+        \texttt{column\_ids(board, column)} & Mã các ô thuộc cột có chỉ số \texttt{column}. \\
+        \texttt{neighbor\_ids(board, cell\_id)} & Mã các ô tiếp giáp ngang, dọc hoặc chéo với ô được chọn; không bao gồm chính ô đó. \\
+        \texttt{profession\_ids(board, profession)} & Mã các ô có nghề nghiệp trùng với chuỗi \texttt{profession}. \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
+
+Với truy vấn hàng xóm, một ô ở trong lòng bàn cờ có tối đa tám ô lân cận; ô biên và ô góc có ít hơn do giới hạn kích thước lưới. Khái niệm này khác với quan hệ nối cạnh trong ràng buộc liên thông, vốn chỉ xét các cạnh ngang và dọc. Ngoài các vùng được tạo bằng hàm tiện ích, một manh mối cũng có thể dùng trực tiếp tuple các mã ô để biểu diễn vùng liệt kê tường minh.
