@@ -8,7 +8,8 @@ the other status is refuted and the verdict is forced. The agent never guesses.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Literal
+from types import MappingProxyType
+from typing import Literal, Mapping
 
 from BackEnd.GameEngine.ConstraintChecker import ConstraintChecker
 from BackEnd.GameEngine.GameEngine import GameEngine, SubmitOutcome
@@ -17,6 +18,8 @@ from BackEnd.GameEngine.GameState import PublicState
 
 MoveStatus = Literal["FOUND", "SOLVED", "UNKNOWN", "INCONSISTENT"]
 SolveStatus = Literal["SOLVED", "STUCK", "INCONSISTENT"]
+CellClassification = Literal["CRIMINAL", "INNOCENT", "UNKNOWN"]
+ClassificationStatus = Literal["CONSISTENT", "INCONSISTENT"]
 
 
 @dataclass(frozen=True)
@@ -31,6 +34,15 @@ class Query:
 class Move:
     status: MoveStatus
     verdict: Verdict | None = None
+    queries: tuple[Query, ...] = ()
+
+
+@dataclass(frozen=True)
+class ClassificationResult:
+    status: ClassificationStatus
+    classifications: Mapping[int, CellClassification] = field(
+        default_factory=lambda: MappingProxyType({})
+    )
     queries: tuple[Query, ...] = ()
 
 
@@ -92,6 +104,41 @@ class DeductiveAgent:
                 )
 
         return Move("UNKNOWN" if unresolved else "SOLVED", queries=tuple(queries))
+
+    def classify_all(self, public_state: PublicState) -> ClassificationResult:
+        """Classify every unresolved cell as CRIMINAL, INNOCENT, or UNKNOWN."""
+        queries: list[Query] = []
+
+        def check(assumption: Verdict | None = None) -> bool:
+            satisfiable = self._checker.has_solution(public_state, assumption)
+            queries.append(Query(assumption, satisfiable))
+            return satisfiable
+
+        if not check():
+            return ClassificationResult("INCONSISTENT", queries=tuple(queries))
+
+        unresolved = [
+            cell.id for row in public_state.board.cells for cell in row
+            if cell.id not in public_state.proved_statuses
+        ]
+        classifications: dict[int, CellClassification] = {}
+        for cell_id in unresolved:
+            can_be_criminal = check(Verdict(cell_id, True))
+            can_be_innocent = check(Verdict(cell_id, False))
+            if can_be_criminal and not can_be_innocent:
+                classifications[cell_id] = "CRIMINAL"
+            elif can_be_innocent and not can_be_criminal:
+                classifications[cell_id] = "INNOCENT"
+            elif can_be_criminal and can_be_innocent:
+                classifications[cell_id] = "UNKNOWN"
+            else:
+                return ClassificationResult("INCONSISTENT", queries=tuple(queries))
+
+        return ClassificationResult(
+            "CONSISTENT",
+            MappingProxyType(classifications),
+            tuple(queries),
+        )
 
     def solve(self, engine: GameEngine) -> SolveResult:
         """Keep playing provable moves until solved or no move is provable."""
