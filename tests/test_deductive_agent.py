@@ -1,10 +1,14 @@
 import pytest
 
 from BackEnd.GameEngine.BruteForceChecker import BruteForceChecker
-from BackEnd.GameEngine.DeductiveAgent import DeductiveAgent
+from BackEnd.GameEngine.DeductiveAgent import DeductiveAgent, Query
 from BackEnd.GameEngine.GameEngine import GameEngine
+from BackEnd.GameEngine.GameObject.constraints import Different, Fact, Same
+from BackEnd.GameEngine.GameObject.objects import Verdict
+from BackEnd.GameEngine.GameState import PublicState
 from BackEnd.GameEngine.Maps import PUZZLES
 from BackEnd.LogicAgent.dpll_checker import DPLLChecker
+from tests.helpers import make_board, make_clue, make_public_state
 
 
 @pytest.fixture(params=(BruteForceChecker, DPLLChecker), ids=("brute-force", "dpll"))
@@ -38,3 +42,73 @@ def test_solved_state_has_no_move(checker):
     agent = DeductiveAgent(checker)
     agent.solve(engine)
     assert agent.next_move(engine.get_public_state()).status == "SOLVED"
+
+
+def test_classify_all_distinguishes_criminal_innocent_and_unknown(checker):
+    board = make_board(2, 2)
+    clues = (
+        make_clue(1, Same(0, 1)),
+        make_clue(2, Different(0, 2)),
+    )
+    state = make_public_state(board, clues=clues, proved={0: True})
+
+    result = DeductiveAgent(checker).classify_all(state)
+
+    assert result.status == "CONSISTENT"
+    assert dict(result.classifications) == {
+        1: "CRIMINAL",
+        2: "INNOCENT",
+        3: "UNKNOWN",
+    }
+    assert result.queries == (
+        Query(None, True),
+        Query(Verdict(1, True), True),
+        Query(Verdict(1, False), False),
+        Query(Verdict(2, True), False),
+        Query(Verdict(2, False), True),
+        Query(Verdict(3, True), True),
+        Query(Verdict(3, False), True),
+    )
+
+
+def test_classify_all_returns_inconsistent_on_unsat_kb(checker):
+    board = make_board(2, 2)
+    clues = (
+        make_clue(1, Fact(1, True)),
+        make_clue(2, Fact(1, False)),
+    )
+    state = make_public_state(board, clues=clues, proved={0: True})
+
+    result = DeductiveAgent(checker).classify_all(state)
+
+    assert result.status == "INCONSISTENT"
+    assert dict(result.classifications) == {}
+    assert result.queries == (Query(None, False),)
+
+
+def test_classify_all_does_not_mutate_input_public_state(checker):
+    board = make_board(2, 2)
+    clues = (
+        make_clue(1, Same(0, 1)),
+        make_clue(2, Different(0, 2)),
+    )
+    proved = {0: True}
+    state = PublicState(
+        puzzle_id="immutability-check",
+        board=board,
+        revealed_clues=clues,
+        proved_statuses=proved,
+    )
+    snapshot = PublicState(
+        puzzle_id=state.puzzle_id,
+        board=state.board,
+        revealed_clues=state.revealed_clues,
+        proved_statuses=dict(state.proved_statuses),
+    )
+
+    DeductiveAgent(checker).classify_all(state)
+
+    assert state == snapshot
+    assert state.proved_statuses is proved
+    assert proved == {0: True}
+    assert state.revealed_clues == clues

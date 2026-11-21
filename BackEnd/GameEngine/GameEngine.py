@@ -15,6 +15,7 @@ class SubmitOutcome(Enum):
     CONTRADICTED = "CONTRADICTED"
     ALREADY_PROVED = "ALREADY_PROVED"
     INVALID_CELL = "INVALID_CELL"
+    INCONSISTENT = "INCONSISTENT"
 
 
 @dataclass(frozen=True)
@@ -63,7 +64,8 @@ class GameEngine:
 
         - INVALID_CELL: `cell_id` is not on the board.
         - ALREADY_PROVED: the cell already has a proved verdict.
-        - CONTRADICTED: no solution of the public clues has `status` here.
+        - INCONSISTENT: neither `status` nor its opposite is possible.
+        - CONTRADICTED: only the opposite of `status` is possible.
         - NOT_PROVABLE: both `status` and its opposite are still possible.
         - ACCEPTED: only `status` is possible; the verdict is recorded and
           the clues attached to this cell are revealed.
@@ -77,10 +79,15 @@ class GameEngine:
         if cell_id in self._state.proved_statuses:
             return SubmitResult(verdict, SubmitOutcome.ALREADY_PROVED, public_state)
 
-        if not self._checker.has_solution(public_state, verdict):
-            return SubmitResult(verdict, SubmitOutcome.CONTRADICTED, public_state)
-        if self._checker.has_solution(public_state, Verdict(cell_id, not status)):
+        chosen_sat = self._checker.has_solution(public_state, verdict)
+        opposite_sat = self._checker.has_solution(public_state, Verdict(cell_id, not status))
+
+        if chosen_sat and opposite_sat:
             return SubmitResult(verdict, SubmitOutcome.NOT_PROVABLE, public_state)
+        if not chosen_sat and opposite_sat:
+            return SubmitResult(verdict, SubmitOutcome.CONTRADICTED, public_state)
+        if not chosen_sat and not opposite_sat:
+            return SubmitResult(verdict, SubmitOutcome.INCONSISTENT, public_state)
 
         self._prove(cell_id, status)
         return SubmitResult(verdict, SubmitOutcome.ACCEPTED, self.get_public_state())

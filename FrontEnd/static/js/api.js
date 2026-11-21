@@ -68,7 +68,7 @@ export class GameApi {
 
   /**
    * POST /api/game/verdicts {cell_id, is_criminal}
-   * -> { outcome: "ACCEPTED"|"NOT_PROVABLE"|"CONTRADICTED"|"ALREADY_PROVED", state }
+   * -> { outcome: "ACCEPTED"|"NOT_PROVABLE"|"CONTRADICTED"|"ALREADY_PROVED"|"INCONSISTENT", state }
    * (INVALID_CELL trả HTTP 404)
    */
   submitVerdict(cellId, isCriminal) {

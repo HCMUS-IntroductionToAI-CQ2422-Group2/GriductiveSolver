@@ -141,6 +141,7 @@ actions.submitVerdict = (cellId, isCriminal) => {
     }
     setGame(result.state);
     if (result.outcome === "ALREADY_PROVED") toast(T.alreadyProved(name));
+    else if (result.outcome === "INCONSISTENT") message({ title: T.inconsistentTitle, text: T.inconsistentBody });
     else message({ title: T.errorTitle, text: String(result.outcome) });
   }, cellId);
 };

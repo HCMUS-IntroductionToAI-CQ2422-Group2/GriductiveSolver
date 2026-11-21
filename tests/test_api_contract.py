@@ -15,9 +15,11 @@ from fastapi.testclient import TestClient
 from BackEnd.APIs import main as api
 from BackEnd.GameEngine.BruteForceChecker import BruteForceChecker
 from BackEnd.GameEngine.GameEngine import GameEngine, SubmitOutcome, SubmitResult
-from BackEnd.GameEngine.GameObject.objects import Verdict
+from BackEnd.GameEngine.GameObject.constraints import Fact
+from BackEnd.GameEngine.GameObject.objects import PuzzleDefinition, Verdict
 from BackEnd.GameEngine.Maps import PUZZLES
 from FrontEnd.tools.export_contract import CONTRACT_PATH, render_contract
+from tests.helpers import make_board, make_clue
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -175,6 +177,32 @@ def test_verdict_outcomes_have_documented_shape(client):
     accepted = submit(forced.cell_id, forced.is_criminal)
     assert accepted["outcome"] == "ACCEPTED"
     assert accepted["state"]["cells"][forced.cell_id]["is_criminal"] == forced.is_criminal
+
+
+def test_inconsistent_verdict_returns_inconsistent_outcome(client):
+    board = make_board(2, 2)
+    puzzle = PuzzleDefinition(
+        id="inconsistent-api",
+        board=board,
+        clues=(
+            make_clue(1, Fact(0, True)),
+            make_clue(2, Fact(0, False)),
+            make_clue(3, Fact(1, False), source_cell_id=0),
+        ),
+        solution=tuple(Verdict(i, False) for i in range(4)),
+        initial_verdicts=(),
+    )
+    api.app.state.engine = GameEngine(puzzle, api.checker)
+    initial = client.get("/api/game").json()
+
+    for is_criminal in (True, False):
+        response = client.post("/api/game/verdicts",
+                               json={"cell_id": 0, "is_criminal": is_criminal})
+        assert response.status_code == 200
+        data = response.json()
+        assert data["outcome"] == "INCONSISTENT"
+        assert data["state"] == initial
+    assert client.get("/api/game").json() == initial
 
 
 def test_hint_shape(client):
