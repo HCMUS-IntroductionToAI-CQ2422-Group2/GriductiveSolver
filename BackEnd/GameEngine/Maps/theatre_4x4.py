@@ -87,6 +87,22 @@ CLUES = (
         constraint=CountConstraint(Count((2, 6, 10, 14)), Comparison.EQ, 2),
         description_nl="Cột C có đúng hai tội phạm.",
     ),
+    Clue(9, 4, Fact(0, False),
+         "An (A1), người ngay phía trên Giang (A2), vô tội."),
+    Clue(10, 6, CountConstraint(Count((1, 2, 3, 5, 7, 9, 10, 11)), Comparison.EQ, 2),
+         "Trong các hàng xóm của Hùng (C2) (kể cả đường chéo) có đúng hai tội phạm."),
+    Clue(11, 8, Fact(4, False),
+         "Giang (A2), người ngay phía trên Lan (A3), vô tội."),
+    Clue(12, 9, CountConstraint(Count((4, 5, 6, 8, 10, 12, 13, 14)), Comparison.EQ, 3),
+         "Trong các hàng xóm của Long (B3) (kể cả đường chéo) có đúng ba tội phạm."),
+    Clue(13, 11, Fact(7, False),
+         "Khoa (D2), người ngay phía trên Minh (D3), vô tội."),
+    Clue(14, 13, CountConstraint(Count((12, 13, 14, 15)), Comparison.EQ, 1),
+         "Hàng 4 có đúng một tội phạm."),
+    Clue(15, 14, Fact(13, False),
+         "Ngọc (B4), người ngay bên trái Oanh (C4), vô tội."),
+    Clue(16, 15, Fact(11, False),
+         "Minh (D3), người ngay phía trên Phúc (D4), vô tội."),
 )
 
 PUZZLE = PuzzleDefinition(

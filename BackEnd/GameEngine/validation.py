@@ -23,14 +23,23 @@ class PuzzleValidationError(Exception):
 def validate_puzzle(
     puzzle: PuzzleDefinition,
     checker: ConstraintChecker,
+    *,
+    require_clue_per_cell: bool = False,
 ) -> None:
     """Check structure, solution uniqueness, and no-guessing progression.
 
     Returns None when the puzzle is valid; otherwise raises
     `PuzzleValidationError` describing the first problem found.
     Checks run in order: structure, then uniqueness, then progression.
+
+    `require_clue_per_cell` enforces the Griductive rule that every character
+    has exactly one testimony, revealed once their verdict is accepted, and
+    that there are no public (source-less) clues. Playable maps must pass it;
+    small engine fixtures may leave it off.
     """
     _check_structure(puzzle)
+    if require_clue_per_cell:
+        _check_clue_per_cell(puzzle)
     _check_unique_solution(puzzle, checker)
     _check_solvable_without_guessing(puzzle, checker)
 
@@ -153,6 +162,21 @@ def _check_structure(puzzle: PuzzleDefinition) -> None:
             raise PuzzleValidationError(
                 f"Initial verdict for cell {verdict.cell_id} disagrees with solution"
             )
+
+
+def _check_clue_per_cell(puzzle: PuzzleDefinition) -> None:
+    """Every cell is the source of exactly one clue; no clue is public."""
+    public = sorted(c.id for c in puzzle.clues if c.source_cell_id is None)
+    if public:
+        raise PuzzleValidationError(f"Clues {public} have no source cell")
+    sources = [c.source_cell_id for c in puzzle.clues]
+    duplicated = _duplicates(sources)
+    if duplicated:
+        raise PuzzleValidationError(f"Cells {duplicated} have more than one clue")
+    cell_ids = {cell.id for row in puzzle.board.cells for cell in row}
+    missing = sorted(cell_ids - set(sources))
+    if missing:
+        raise PuzzleValidationError(f"Cells {missing} have no clue")
 
 
 def _solution_map(puzzle: PuzzleDefinition) -> dict[int, bool]:

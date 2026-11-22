@@ -23,7 +23,7 @@ def test_map_catalog_has_requested_sizes():
 
 @pytest.mark.parametrize("puzzle", PUZZLES, ids=lambda puzzle: puzzle.id)
 def test_map_is_valid_unique_and_solvable_without_guessing(puzzle):
-    validate_puzzle(puzzle, BruteForceChecker())
+    validate_puzzle(puzzle, BruteForceChecker(), require_clue_per_cell=True)
 
 
 @pytest.mark.parametrize("puzzle", PUZZLES, ids=lambda puzzle: puzzle.id)
@@ -38,7 +38,7 @@ def test_initial_state_does_not_expose_hidden_clues_or_answers(puzzle):
     assert len(public["revealed_clues"]) == 1
     assert public["revealed_clues"][0]["source_cell_id"] == starter.cell_id
     assert all(clue.source_cell_id is not None for clue in puzzle.clues)
-    assert len({clue.source_cell_id for clue in puzzle.clues}) == len(puzzle.clues)
+    assert sorted(clue.source_cell_id for clue in puzzle.clues) == list(range(puzzle.board.cell_count))
     assert {clue["id"] for clue in public["revealed_clues"]} == {
         clue.id for clue in puzzle.clues if clue.source_cell_id == starter.cell_id
     }

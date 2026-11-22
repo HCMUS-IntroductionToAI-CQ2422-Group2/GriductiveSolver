@@ -5,6 +5,7 @@ from BackEnd.GameEngine.GameObject.constraints import (
     Comparison,
     Count,
     CountConstraint,
+    Different,
     Fact,
     ParityConstraint,
     Same,
@@ -98,6 +99,24 @@ CLUES = (
             "Hà (B2) vô tội."
         ),
     ),
+    Clue(8, 1, CountConstraint(Count((0, 1, 2, 3)), Comparison.EQ, 2),
+         "Hàng 1 có đúng hai tội phạm."),
+    Clue(9, 3, Different(2, 6),
+         "Trong Chi (C1) và Hùng (C2), đúng một người là tội phạm."),
+    Clue(10, 5, CountConstraint(Count((4, 5, 6, 7)), Comparison.EQ, 1),
+         "Hàng 2 có đúng một tội phạm."),
+    Clue(11, 7, CountConstraint(Count((2, 3, 6, 10, 11)), Comparison.EQ, 2),
+         "Trong các hàng xóm của Khoa (D2) (kể cả đường chéo) có đúng hai tội phạm."),
+    Clue(12, 9, CountConstraint(Count((4, 5, 6, 8, 10, 12, 13, 14)), Comparison.EQ, 4),
+         "Trong các hàng xóm của Long (B3) (kể cả đường chéo) có đúng bốn tội phạm."),
+    Clue(13, 10, CountConstraint(Count((2, 6, 10, 14)), Comparison.EQ, 2),
+         "Cột C có đúng hai tội phạm."),
+    Clue(14, 11, CountConstraint(Count((8, 9, 10, 11)), Comparison.EQ, 1),
+         "Hàng 3 có đúng một tội phạm."),
+    Clue(15, 13, CountConstraint(Count((1, 5, 9, 13)), Comparison.EQ, 2),
+         "Cột B có đúng hai tội phạm."),
+    Clue(16, 15, CountConstraint(Count((10, 11, 14)), Comparison.EQ, 1),
+         "Trong các hàng xóm của Phúc (D4) (kể cả đường chéo) có đúng một tội phạm."),
 )
 
 PUZZLE = PuzzleDefinition(

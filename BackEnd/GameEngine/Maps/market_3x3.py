@@ -68,6 +68,14 @@ CLUES = (
             "Số tội phạm ở bốn góc A1, C1, A3 và C3 là số chẵn."
         ),
     ),
+    Clue(6, 5, CountConstraint(Count((3, 4, 5)), Comparison.EQ, 1),
+         "Hàng 2 có đúng một tội phạm."),
+    Clue(7, 6, CountConstraint(Count((3, 4, 7)), Comparison.EQ, 1),
+         "Trong các hàng xóm của Hùng (A3) (kể cả đường chéo) có đúng một tội phạm."),
+    Clue(8, 7, CountConstraint(Count((1, 4, 7)), Comparison.EQ, 2),
+         "Cột B có đúng hai tội phạm."),
+    Clue(9, 8, CountConstraint(Count((6, 7, 8)), Comparison.EQ, 2),
+         "Hàng 3 có đúng hai tội phạm."),
 )
 
 PUZZLE = PuzzleDefinition(
