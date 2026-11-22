@@ -1,3 +1,107 @@
 \subsection{Các loại clue và ngữ nghĩa logic}
-% Note: Định nghĩa Fact, Same, Different, counting, parity, connected và AllOf; kèm ví dụ và quy ước vùng/hàng xóm.
+\label{sec:clue_semantics}
 
+Mỗi lời khai $\gamma \in \mathcal{K}$ gồm ô sở hữu $\mathrm{src}(\gamma)$, câu
+mô tả tiếng Việt hiển thị cho người chơi và một ràng buộc hình thức. Module
+\texttt{constraints.py} định nghĩa bảy dạng ràng buộc. Với mỗi dạng, mục này
+nêu ngữ nghĩa logic trên các biến $x_i$ và cách \texttt{CNFEncoder} chuyển nó
+thành tập mệnh đề $\phi_\gamma$. Bảng~\ref{tab:constraint_summary} tóm tắt kích
+thước mã hóa.
+
+\paragraph{Fact.}
+$\mathrm{Fact}(i, s)$ khẳng định trực tiếp trạng thái một ô, $x_i = s$. Mã hóa
+là một mệnh đề đơn vị: $(x_i)$ nếu $s=\top$, $(\neg x_i)$ nếu $s=\bot$.
+
+\paragraph{Same và Different.}
+Hai dạng này ràng buộc quan hệ giữa hai ô, mỗi dạng sinh hai mệnh đề:
+\begin{align}
+  \mathrm{Same}(i,j) &\equiv x_i \leftrightarrow x_j
+    \equiv (\neg x_i \lor x_j) \land (x_i \lor \neg x_j), \\
+  \mathrm{Different}(i,j) &\equiv x_i \oplus x_j
+    \equiv (x_i \lor x_j) \land (\neg x_i \lor \neg x_j).
+\end{align}
+
+\paragraph{CountConstraint.}
+Thành phần $\mathrm{Count}(T, s)$ đếm số ô trong tập đích
+$T \subseteq \mathcal{C}$ có trạng thái $s$. Ứng với nó là danh sách literal
+$L = (\ell_i)_{i \in T}$, với $\ell_i = x_i$ khi đếm tội phạm và
+$\ell_i = \neg x_i$ khi đếm người vô tội. Ràng buộc so sánh tổng
+$\sum_{\ell \in L} [\ell]$ với hằng số $k$ bằng một trong sáu toán tử
+$\{=, \neq, <, \le, >, \ge\}$. Mọi toán tử quy về ba thủ tục:
+\begin{itemize}
+  \item $\textsc{AtLeast}(L, k)$: mọi tập con gồm $|L|-k+1$ literal phải chứa
+    ít nhất một literal đúng, sinh $\binom{|L|}{|L|-k+1}$ mệnh đề;
+  \item $\textsc{AtMost}(L, k)$: không tập con $k+1$ literal nào đúng đồng thời,
+    sinh $\binom{|L|}{k+1}$ mệnh đề;
+  \item $\textsc{NotExactly}(L, k)$: loại bỏ từng phép gán có đúng $k$ literal
+    đúng, sinh $\binom{|L|}{k}$ mệnh đề độ dài $|L|$.
+\end{itemize}
+Toán tử $=$ là hợp của $\textsc{AtLeast}$ và $\textsc{AtMost}$; $>$ và $<$
+lần lượt dùng ngưỡng $k+1$ và $k-1$. Khi vế phải là một bộ đếm thứ hai với
+danh sách literal $L'$, bộ mã hóa dùng đẳng thức
+\begin{equation}
+  \textstyle\sum_{L} \;\mathrm{op}\; \sum_{L'}
+  \iff
+  \sum_{L} + \sum_{\ell \in L'} [\neg \ell] \;\mathrm{op}\; |L'| ,
+\end{equation}
+nên chỉ cần nối $L$ với phủ định của $L'$ rồi so sánh với hằng số $|L'|$.
+Tập đích $T$ trong các bản đồ hiện tại là một hàng, một cột, tám ô lân cận
+(gồm cả đường chéo) hoặc một tập ô liệt kê tường minh; module
+\texttt{board\_utils} cung cấp các hàm truy xuất hàng, cột, lân cận và nhóm
+nghề.
+
+\paragraph{ParityConstraint.}
+Ràng buộc chẵn lẻ khẳng định số literal đúng trong $L=(\ell_1,\ldots,\ell_m)$
+là lẻ (hoặc chẵn): $\bigoplus_{k=1}^{m} \ell_k = \top$ (hoặc $\bot$). Mã hóa
+trực tiếp phép XOR $m$ ngôi cần $2^{m-1}$ mệnh đề, nên bộ mã hóa dùng chuỗi
+biến phụ trợ theo kỹ thuật Tseitin \cite{tseitin1968}: đặt $p_1 = \ell_1$ và,
+với $k \ge 2$, thêm bốn mệnh đề định nghĩa
+$p_k \leftrightarrow p_{k-1} \oplus \ell_k$. Mệnh đề đơn vị cuối cùng $(p_m)$
+hoặc $(\neg p_m)$ chốt tính lẻ hoặc chẵn. Kích thước mã hóa tuyến tính:
+$4(m-1)+1$ mệnh đề và $m-1$ biến phụ trợ.
+
+\paragraph{ConnectedConstraint.}
+Ràng buộc liên thông khẳng định các ô trong $T$ có trạng thái $s$ tạo thành
+đúng một thành phần liên thông theo cạnh (bốn hướng, không tính đường chéo).
+Đây là ràng buộc toàn cục duy nhất trong mô hình, được mã hóa bằng lan truyền
+khả đạt qua $m-1$ bước với $m = |T|$. Gọi $y_k$ là literal ``ô thứ $k$ của $T$
+được chọn'' và $N(k)$ là các láng giềng cạnh của nó trong $T$:
+\begin{itemize}
+  \item \emph{Gốc duy nhất.} $r_k^{(0)}$ đúng khi và chỉ khi ô $k$ là ô được
+    chọn đầu tiên theo thứ tự liệt kê của $T$.
+  \item \emph{Lan truyền.} Với $t = 1,\ldots,m-1$:
+    $r_k^{(t)} \leftrightarrow y_k \land \bigl(r_k^{(t-1)} \lor
+    \bigvee_{j \in N(k)} r_j^{(t-1)}\bigr)$.
+  \item \emph{Phủ kín.} Mọi ô được chọn phải khả đạt ở bước cuối:
+    $y_k \rightarrow r_k^{(m-1)}$.
+\end{itemize}
+Nếu cờ \texttt{allow\_empty} tắt, bộ mã hóa thêm mệnh đề
+$\bigvee_k y_k$ để cấm tập rỗng. Trong các bản đồ hiện tại, ràng buộc này mô tả
+``các tội phạm trong một hàng đứng liền nhau'' (Đài thiên văn) và ``hai tội
+phạm nằm ở hai ô chung cạnh'' (Nhà hát).
+
+\paragraph{AllOf.}
+$\mathrm{AllOf}(\gamma_1,\ldots,\gamma_m) \equiv \bigwedge_{j} \gamma_j$ cho
+phép một lời khai chứa nhiều mệnh đề con. Mã hóa là phép nối các tập mệnh đề
+con: $\phi_{\mathrm{AllOf}} = \bigcup_j \phi_{\gamma_j}$.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Kích thước mã hóa CNF của từng dạng ràng buộc. $m$: số literal hoặc
+    số ô đích; $k$: ngưỡng so sánh.}
+  \label{tab:constraint_summary}
+  \begin{tabular}{lll}
+    \toprule
+    \textbf{Ràng buộc} & \textbf{Số mệnh đề} & \textbf{Biến phụ trợ} \\
+    \midrule
+    Fact                     & $1$ & $0$ \\
+    Same, Different          & $2$ & $0$ \\
+    Count ($\ge k$)          & $\binom{m}{m-k+1}$ & $0$ \\
+    Count ($\le k$)          & $\binom{m}{k+1}$ & $0$ \\
+    Count ($\ne k$)          & $\binom{m}{k}$ & $0$ \\
+    Parity                   & $4(m-1)+1$ & $m-1$ \\
+    Connected                & $O(m^2 \cdot \deg)$ & $m^2$ \\
+    AllOf                    & tổng các thành phần & tổng các thành phần \\
+    \bottomrule
+  \end{tabular}
+\end{table}
