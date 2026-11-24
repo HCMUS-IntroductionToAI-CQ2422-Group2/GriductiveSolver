@@ -6,12 +6,12 @@ coordinates use column letters and one-based rows, such as A1 or E5.
 
 | Map ID | Size | Difficulty | Starting character | Clues | Deduction waves |
 | --- | --- | --- | --- | ---: | ---: |
-| `medium-3x3-market` | 3×3 | Medium | An (A1) | 5 | 3 |
-| `medium-3x3-gallery` | 3×3 | Medium | Bình (B1) | 5 | 4 |
-| `medium-4x4-harbor` | 4×4 | Medium | An (A1) | 7 | 4 |
-| `medium-4x4-theatre` | 4×4 | Medium | Dũng (D1) | 8 | 6 |
-| `medium-5x5-museum` | 5×5 | Medium | Long (E2) | 16 | 5 |
-| `expert-5x5-observatory` | 5×5 | Expert / siêu khó | Lan (D2) | 9 | 8 |
+| `medium-3x3-market` | 3×3 | Medium | An (A1) | 9 | 3 |
+| `medium-3x3-gallery` | 3×3 | Medium | Bình (B1) | 9 | 4 |
+| `medium-4x4-harbor` | 4×4 | Medium | An (A1) | 16 | 4 |
+| `medium-4x4-theatre` | 4×4 | Medium | Dũng (D1) | 16 | 6 |
+| `medium-5x5-museum` | 5×5 | Medium | Long (E2) | 25 | 5 |
+| `expert-5x5-observatory` | 5×5 | Expert / siêu khó | Lan (D2) | 25 | 8 |
 
 A wave contains all verdicts forced by the information available at its start;
 new testimony is used in the following wave. These are author-assigned
@@ -22,6 +22,11 @@ difficulty levels based on inference structure, not measured player ratings.
 - All maps begin with exactly one character already proved innocent. Only that
   character's single clue is visible; there are no public, source-less clues.
 - Proving a character reveals their testimony, whether innocent or criminal.
+- Every character has exactly one testimony (`validate_puzzle(...,
+  require_clue_per_cell=True)` enforces it). Testimony added later for cells
+  that only confirm the deduction (neighbour counts including diagonals,
+  row/column counts, the card directly above/left) was chosen so that every
+  deduction wave stays exactly the same as before.
 - The declared solution satisfies every clue and is unique. Every verdict can
   be proved from the public information available during play, without guessing.
 - The museum starts with Long naming three innocents. Their clues combine

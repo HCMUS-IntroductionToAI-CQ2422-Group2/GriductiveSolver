@@ -153,6 +153,48 @@ def test_initial_verdict_disagrees_with_solution():
     assert_invalid(with_(initial_verdicts=(Verdict(0, False),)), "disagrees")
 
 
+# ---- one clue per character ---------------------------------------------
+
+# 0 criminal, others innocent; every cell owns exactly one clue.
+FULL = with_(
+    clues=(
+        make_clue(1, CountConstraint(Count((1,)), Comparison.EQ, 0), source_cell_id=2),
+        make_clue(2, Same(1, 3), source_cell_id=1),
+        make_clue(3, CountConstraint(Count(ALL), Comparison.EQ, 1), source_cell_id=3),
+        make_clue(4, Fact(3, False), source_cell_id=0),
+    ),
+    initial_verdicts=(Verdict(2, False),),
+)
+
+
+def assert_invalid_strict(puzzle, message_part):
+    with pytest.raises(PuzzleValidationError, match=message_part):
+        validate_puzzle(puzzle, CHECKER, require_clue_per_cell=True)
+
+
+def test_clue_per_cell_passes_when_every_cell_has_one():
+    validate_puzzle(FULL, CHECKER, require_clue_per_cell=True)
+
+
+def test_clue_per_cell_is_off_by_default():
+    validate_puzzle(VALID, CHECKER)
+
+
+def test_clue_per_cell_rejects_missing_clue():
+    assert_invalid_strict(with_(clues=FULL.clues[:3], initial_verdicts=FULL.initial_verdicts),
+                          r"Cells \[0\] have no clue")
+
+
+def test_clue_per_cell_rejects_public_clue():
+    assert_invalid_strict(VALID, r"Clues \[1, 2\] have no source cell")
+
+
+def test_clue_per_cell_rejects_two_clues_on_one_cell():
+    extra = make_clue(5, Fact(0, True), source_cell_id=1)
+    assert_invalid_strict(dataclasses.replace(FULL, clues=FULL.clues + (extra,)),
+                          r"Cells \[1\] have more than one clue")
+
+
 # ---- uniqueness -----------------------------------------------------------
 
 def test_declared_solution_violates_clues():
