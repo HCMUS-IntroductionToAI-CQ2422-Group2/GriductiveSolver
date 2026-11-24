@@ -1,3 +1,88 @@
 \subsection{Trace suy luận, benchmark và kết quả test đầy đủ}
-% Note: Đưa trace, bảng số đo gốc và kết quả test có thể đối chiếu với phần chính; ghi nguồn, cấu hình và thời điểm chạy.
+\label{sec:detailed_results}
 
+Phụ lục này ghi lại số liệu thô của lần chạy benchmark và bộ kiểm thử dùng
+trong báo cáo, kèm cấu hình máy để có thể tái lập
+(Phụ lục~\ref{sec:reproduction}).
+
+\begin{sloppypar}
+\paragraph{Cấu hình đo.}
+Benchmark được chạy bằng \nolinkurl{BackEnd/LogicAgent/benchmark.py} trên máy
+Apple M5, Python 3.14.7, một luồng. Với mỗi bản đồ, script cho
+\texttt{DeductiveAgent} giải trọn ván qua \texttt{GameEngine}, dùng
+\texttt{DPLLChecker} cho cả truy vấn của tác nhân lẫn bước xác minh của Game
+Engine. Các bộ đếm của bộ giải (số lần phân nhánh, lan truyền, quay lui) là tất
+định và trùng nhau ở cả ba lần chạy. Thời gian dao động giữa các lần chạy;
+Bảng~\ref{tab:benchmark} ghi trung vị của ba lần.
+\end{sloppypar}
+
+\begin{table}[htbp]
+  \centering\small
+  \caption{Kết quả benchmark tác nhân suy luận trên sáu bản đồ. \emph{Mệnh đề}:
+    số mệnh đề CNF của $\mathit{KB}$ ở trạng thái cuối. \emph{Bước/Sóng}: số
+    phán quyết tác nhân đưa ra và số sóng suy luận. \emph{SAT}: tổng số lần gọi
+    bộ giải. \emph{PN/LT/QL}: tổng số lần phân nhánh, lan truyền đơn vị và quay
+    lui. \emph{Thời gian}: tổng thời gian giải trọn ván, trung vị ba lần chạy.}
+  \label{tab:benchmark}
+  \begin{tabular}{lcrcrrrrr}
+    \toprule
+    \textbf{Bản đồ} & \textbf{Lưới} & \textbf{Mệnh đề} & \textbf{Bước/Sóng}
+      & \textbf{SAT} & \textbf{PN} & \textbf{LT} & \textbf{QL}
+      & \textbf{Thời gian (ms)} \\
+    \midrule
+    Khu chợ       & $3\times3$ &   50 & 8/3  &  45 &   0 &  327 &  0 &   1.3 \\
+    Phòng tranh   & $3\times3$ &   45 & 8/4  &  49 &  11 &  312 &  0 &   1.0 \\
+    Bến cảng      & $4\times4$ &  333 & 15/4 &  84 &  64 &  858 &  0 &  15.0 \\
+    Nhà hát       & $4\times4$ &  261 & 15/6 & 106 &  13 & 1447 &  0 &  14.8 \\
+    Bảo tàng      & $5\times5$ & 1869 & 24/5 & 131 &  94 & 1921 &  8 & 293.8 \\
+    Đài thiên văn & $5\times5$ & 2041 & 24/8 & 155 & 190 & 9285 & 41 & 766.9 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\paragraph{Nhận xét.}
+Cả sáu bản đồ được giải trọn mà không có phán quyết nào bị Game Engine từ chối.
+Số bước luôn bằng $|\mathcal{C}|-1$ vì nhân vật khởi đầu đã được chứng minh sẵn.
+Chi phí tăng nhanh theo kích thước lưới: thời gian của hai bản đồ $5\times5$
+lớn hơn hai bản đồ $4\times4$ khoảng $20$ đến $50$ lần, trong khi số lần gọi
+SAT chỉ tăng chưa đến hai lần. Nguyên nhân chính là kích thước của
+$\mathit{KB}$: mã hóa tổ hợp của \texttt{CountConstraint} trên các tập đích
+lớn sinh hàng nghìn mệnh đề (Bảng~\ref{tab:constraint_summary}), và mỗi lần
+gọi bộ giải phải dựng lại cũng như lan truyền trên toàn bộ tập mệnh đề này.
+Chỉ hai bản đồ $5\times5$ phải quay lui. Đài thiên văn chậm nhất, quay lui
+nhiều nhất ($41$ lần) và dùng nhiều biến phụ trợ nhất (đến $56$ biến) do hai ràng buộc
+\texttt{ConnectedConstraint} trên hàng năm ô. Ngay cả trong trường hợp này,
+thời gian giải trọn ván vẫn dưới một giây, và mỗi lần gọi bộ giải trung bình
+khoảng $5$\,ms.
+
+\paragraph{Bộ kiểm thử.}
+Lệnh \texttt{python -m pytest -q tests} chạy $172$ ca kiểm thử trong $12$
+module và tất cả đều đạt. Bảng~\ref{tab:test_results} liệt kê phạm vi của từng
+module.
+
+\begin{table}[htbp]
+  \centering\small
+  \caption{Phạm vi bộ kiểm thử. Cột \emph{Số ca} đếm cả các ca sinh ra do tham
+    số hóa.}
+  \label{tab:test_results}
+  \begin{tabularx}{\textwidth}{lr>{\raggedright\arraybackslash}X}
+    \toprule
+    \textbf{Module} & \textbf{Số ca} & \textbf{Nội dung kiểm tra} \\
+    \midrule
+    \texttt{test\_game\_state}         &  4 & Điều kiện hoàn thành ván; trạng thái mặc định độc lập giữa các ván \\
+    \texttt{test\_game\_engine}        & 13 & Sáu kết quả của \texttt{submit\_verdict}; lật lời khai; ảnh chụp công khai chỉ đọc; \texttt{restart} \\
+    \texttt{test\_validation}          & 29 & Lỗi cấu trúc bản đồ, nghiệm không duy nhất, bản đồ buộc phải đoán, điều kiện một lời khai mỗi ô \\
+    \texttt{test\_brute\_force\_checker} & 24 & Ngữ nghĩa từng dạng ràng buộc trên bộ kiểm tra quay lui dùng làm đối chứng \\
+    \texttt{test\_cnf\_encoder}        &  6 & Mã hóa CNF khớp bảng chân trị; đếm so với đếm; chẵn lẻ; liên thông; biến phụ trợ \\
+    \texttt{test\_dpll\_solver}        & 20 & Rút gọn, lan truyền đơn vị, phân nhánh theo biến nhỏ nhất, quay lui, bộ đếm thống kê \\
+    \texttt{test\_dpll\_checker}       &  3 & Ánh xạ biến, giả thiết tạm thời, chỉ dùng lời khai đã lật \\
+    \texttt{test\_deductive\_agent}    & 22 & Tác nhân giải mọi bản đồ chỉ bằng nước đi đã chứng minh; phân loại ô; phát hiện KB mâu thuẫn \\
+    \texttt{test\_integration}         &  5 & Ván chơi đầy đủ; lời khai mở đúng lúc; nước đi sai không đổi trạng thái \\
+    \texttt{test\_maps}                & 21 & Danh mục sáu bản đồ; tính hợp lệ; không lộ lời khai ẩn hay đáp án; giải và khởi động lại qua API \\
+    \texttt{test\_api\_contract}       & 21 & Hợp đồng OpenAPI; hình dạng phản hồi; mã lỗi 404, 409, 422; CORS \\
+    \texttt{test\_api\_dpll}           &  4 & API dùng DPLL cho gợi ý, phán quyết và tự giải; trace và khởi động lại \\
+    \midrule
+    \textbf{Tổng}                      & \textbf{172} & \\
+    \bottomrule
+  \end{tabularx}
+\end{table}

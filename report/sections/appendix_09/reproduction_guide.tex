@@ -1,3 +1,68 @@
 \subsection{Hướng dẫn cài đặt, chạy và tái lập thực nghiệm}
-% Note: Ghi môi trường, dependencies, cách chạy ứng dụng, lệnh test và benchmark, dữ liệu đầu vào và nơi lưu kết quả.
+\label{sec:reproduction}
 
+Phụ lục này liệt kê các bước để chạy hệ thống và tái lập số liệu trong
+Phụ lục~\ref{sec:detailed_results}. Mọi lệnh được chạy từ thư mục gốc của
+repository, nơi chứa \nolinkurl{BackEnd/} và \nolinkurl{FrontEnd/}.
+
+\paragraph{Môi trường.}
+Hệ thống cần Python 3.10 trở lên, do mã nguồn dùng cú pháp kiểu
+\texttt{X | None}. Số liệu trong báo cáo được đo với Python 3.14.7. Các thư
+viện cần thiết (\texttt{fastapi}, \texttt{uvicorn}, \texttt{pytest},
+\texttt{httpx}) được liệt kê trong \texttt{requirement.txt}. Giao diện là
+HTML, CSS và JavaScript thuần, không cần Node.js hay bước build.
+
+\paragraph{Cài đặt.}
+Tạo môi trường ảo và cài thư viện một lần:
+\begin{verbatim}
+# macOS / Linux
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirement.txt
+
+# Windows (PowerShell)
+py -m venv .venv
+.venv\Scripts\Activate.ps1
+python -m pip install -r requirement.txt
+\end{verbatim}
+Nếu PowerShell chặn script kích hoạt, chạy một lần lệnh
+\texttt{Set-ExecutionPolicy -Scope CurrentUser RemoteSigned}.
+
+\paragraph{Chạy máy chủ.}
+\begin{verbatim}
+python -m uvicorn BackEnd.APIs.main:app --reload
+\end{verbatim}
+Giao diện chơi ở \url{http://127.0.0.1:8000/app/}; nhãn \textbf{LIVE API} ở góc
+trên bên phải xác nhận giao diện đã kết nối với backend. Tài liệu Swagger ở
+\url{http://127.0.0.1:8000/docs}. Nếu cổng 8000 đang bận, thêm
+\texttt{--port 8001} và đổi URL tương ứng.
+
+\paragraph{Chạy bộ kiểm thử.}
+Lệnh sau chạy toàn bộ $172$ ca kiểm thử của Bảng~\ref{tab:test_results}; không
+cần khởi động máy chủ riêng:
+\begin{verbatim}
+python -m pytest -q tests
+\end{verbatim}
+
+\paragraph{Tái lập benchmark.}
+Script benchmark giải trọn sáu bản đồ bằng tác nhân suy luận và in số liệu chi
+tiết từng bản đồ cùng bảng tổng hợp:
+\begin{verbatim}
+python BackEnd/LogicAgent/benchmark.py
+\end{verbatim}
+Các cột kích thước CNF, số bước, số sóng, số lần gọi SAT, số lần phân nhánh,
+lan truyền và quay lui là tất định và phải trùng với
+Bảng~\ref{tab:benchmark}. Cột thời gian phụ thuộc máy; báo cáo dùng trung vị của
+ba lần chạy.
+
+\paragraph{Biên dịch báo cáo.}
+Báo cáo được biên dịch bằng PDFLaTeX. Các sơ đồ được vẽ bằng Mermaid: mã
+nguồn \texttt{.mmd} nằm trong thư mục \nolinkurl{diagrams/} và tệp PDF xuất ra nằm
+trong thư mục \nolinkurl{figures/} của báo cáo. Sau khi sửa một sơ đồ, xuất lại tệp PDF
+tương ứng bằng Mermaid CLI:
+\begin{verbatim}
+cd report/figures
+npx -p @mermaid-js/mermaid-cli mmdc \
+    -i diagrams/reveal_loop.mmd -o reveal_loop.pdf \
+    --pdfFit -b white
+\end{verbatim}

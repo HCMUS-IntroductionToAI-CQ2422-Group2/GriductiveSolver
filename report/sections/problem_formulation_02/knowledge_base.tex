@@ -1,3 +1,42 @@
 \subsection{Knowledge Base tại mỗi thời điểm}
-% Note: Biểu diễn KB từ clue đã mở và verdict đã chứng minh; phân biệt với tập toàn bộ clue dùng kiểm chứng map.
+\label{sec:knowledge_base}
 
+Tri thức mà người chơi và tác nhân được phép dùng thay đổi theo tiến trình ván
+chơi. Mục này định nghĩa cơ sở tri thức tại mỗi thời điểm và phân biệt nó với
+tri thức đầy đủ chỉ dùng khi kiểm chứng bản đồ.
+
+\paragraph{Định nghĩa.}
+Đánh chỉ số thời điểm $t$ theo số phán quyết đã được chấp nhận. Thông tin công
+khai tại $t$ gồm tập lời khai đã lật mở $\mathcal{R}_t \subseteq \mathcal{K}$ và
+tập phán quyết đã chứng minh $\mathcal{P}_t$. Cơ sở tri thức là hội của mã hóa
+CNF của hai nguồn này:
+\begin{equation}
+  \mathit{KB}_t \;=\;
+  \bigwedge_{\gamma \in \mathcal{R}_t} \phi_\gamma
+  \;\land\;
+  \bigwedge_{\langle i, s\rangle \in \mathcal{P}_t} \phi_{\mathrm{Fact}(i,s)} .
+  \label{eq:kb}
+\end{equation}
+Phán quyết đã chứng minh được đưa vào $\mathit{KB}_t$ dưới dạng mệnh đề đơn vị,
+nhờ đó bộ giải SAT lan truyền chúng ngay từ đầu. Bộ kiểm tra
+\texttt{DPLLChecker} dựng lại $\mathit{KB}_t$ từ đầu ở mỗi lần gọi; nó không lưu
+trạng thái giữa các truy vấn nên không thể vô tình dùng thông tin ẩn.
+
+\paragraph{Biểu diễn trong cài đặt.}
+Lớp \texttt{GameState} là trạng thái nội bộ có thể thay đổi của Game Engine,
+gồm từ điển \texttt{proved\_statuses} (ánh xạ ô sang trạng thái đã chứng minh,
+tức $\mathcal{P}_t$) và tập \texttt{revealed\_clue\_ids} (định danh các lời khai
+đã lật). Lớp \texttt{PublicState} là ảnh chụp chỉ đọc mà Game Engine trao cho
+tác nhân và giao diện. Nó chứa bàn chơi, $\mathcal{R}_t$ và một bản sao bọc
+\texttt{MappingProxyType} của $\mathcal{P}_t$, nên bên nhận không ghi ngược được
+vào trạng thái nội bộ. \texttt{PublicState} không chứa $\sigma^\star$ và không
+chứa lời khai chưa lật; đây là ranh giới duy nhất giữa thông tin công khai và
+thông tin ẩn.
+
+\paragraph{Tri thức công khai và tri thức đầy đủ.}
+Ngoài $\mathit{KB}_t$, hệ thống dùng tri thức đầy đủ
+$\mathit{KB}_{\mathrm{full}} = \bigwedge_{\gamma \in \mathcal{K}} \phi_\gamma$,
+gồm mọi lời khai kể cả lời khai chưa lật. $\mathit{KB}_{\mathrm{full}}$ chỉ xuất
+hiện trong hàm \texttt{validate\_puzzle} khi kiểm chứng thiết kế bản đồ, để
+xác nhận $\sigma^\star$ là mô hình duy nhất của nó. Trong lúc chơi, cả Game
+Engine lẫn tác nhân chỉ truy vấn $\mathit{KB}_t$.

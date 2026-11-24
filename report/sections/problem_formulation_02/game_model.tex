@@ -1,3 +1,39 @@
 \subsection{Bàn chơi, nhân vật và trạng thái}
-% Note: Mô tả lưới, tọa độ, nhân vật, nghề nghiệp và hai trạng thái Innocent/Criminal.
+\label{sec:game_model}
 
+Mục này hình thức hóa đối tượng mà Game Engine và tác nhân suy luận cùng thao
+tác: một bàn chơi hữu hạn, mỗi ô chứa đúng một nhân vật mang một trong hai trạng
+thái. Các định nghĩa dưới đây được dùng nhất quán trong toàn bộ báo cáo.
+
+\paragraph{Bàn chơi.}
+Bàn chơi là lưới chữ nhật gồm $H$ hàng và $W$ cột. Dự án cài đặt ba kích thước
+$3\times3$, $4\times4$ và $5\times5$. Ô ở hàng $r$ và cột $c$ (đánh số từ $0$)
+được gán định danh phẳng theo thứ tự hàng (row-major):
+\begin{equation}
+  i = r\cdot W + c, \qquad 0 \le r < H,\; 0 \le c < W.
+  \label{eq:cell_id}
+\end{equation}
+Ký hiệu $\mathcal{C} = \{0, 1, \ldots, HW-1\}$ là tập các ô, do đó
+$|\mathcal{C}| = HW$. Định danh $i$ là khóa duy nhất được Game Engine, bộ kiểm
+tra ràng buộc và bộ mã hóa CNF dùng chung. Khi hiển thị cho người chơi, ô được
+gọi theo quy ước của trò chơi gốc: cột là chữ cái từ \texttt{A}, hàng là số
+nguyên từ $1$ tính từ trên xuống; ví dụ ô $i=7$ trên lưới $3\times3$ là
+\texttt{B3}.
+
+\paragraph{Nhân vật.}
+Mỗi ô được biểu diễn bởi lớp bất biến \texttt{Cell} gồm định danh $i$, tọa độ
+$(r, c)$, tên nhân vật và nghề nghiệp. Nghề nghiệp chỉ là nhãn mô tả: theo luật
+Griductive, nó không mang thông tin về tội trạng trừ khi một lời khai nhắc đến
+nhóm nghề đó \cite{griductive_rules}. Lớp \texttt{Board} lưu các ô dưới dạng
+bộ (tuple) hai chiều bất biến.
+
+\paragraph{Trạng thái và phán quyết.}
+Mỗi nhân vật có đúng một trong hai trạng thái loại trừ nhau: \emph{tội phạm}
+(Criminal, giá trị \texttt{True}) hoặc \emph{vô tội} (Innocent, giá trị
+\texttt{False}). Một \emph{phán quyết} là cặp $\langle i, s\rangle$ với
+$i \in \mathcal{C}$ và $s \in \{\top, \bot\}$, khẳng định trạng thái của ô $i$.
+Lời giải của một bản đồ là hàm $\sigma^\star : \mathcal{C} \to \{\top,\bot\}$
+do người thiết kế khai báo; Game Engine giữ $\sigma^\star$ ở phía máy chủ và
+không bao giờ dùng nó để quyết định chấp nhận phán quyết. Thay vào đó, một
+phán quyết chỉ được chấp nhận khi nó là hệ quả logic của thông tin công khai
+(Mục~\ref{sec:verdict_acceptance}).

@@ -1,3 +1,255 @@
-\subsection{Đặc tả chi tiết 6 map và đáp án}
-% Note: Liệt kê thông tin ban đầu, toàn bộ clue và đáp án của từng map; đánh dấu đây là dữ liệu đầy đủ phục vụ kiểm chứng.
+\subsection{Đặc tả chi tiết 6 bản đồ và đáp án}
+\label{sec:map_specifications}
 
+Phụ lục này liệt kê đầy đủ sáu bản đồ: bố cục nhân vật, đáp án và toàn bộ lời
+khai. Nội dung được sinh tự động từ các module trong
+\nolinkurl{BackEnd/GameEngine/Maps/}, nên khớp với dữ liệu mà Game Engine sử dụng.
+Ô được gọi theo quy ước cột--hàng (A1 là góc trên bên trái). Mỗi ô sở hữu đúng
+một lời khai, được lật khi trạng thái của ô đó được chứng minh. Bảng~\ref{tab:map_overview}
+tóm tắt sáu bản đồ.
+
+\begin{table}[htbp]
+  \centering\footnotesize
+  \caption{Tổng quan sáu bản đồ. \emph{Sóng}: số sóng suy luận cần để giải
+    trọn bản đồ (Mục~\ref{sec:reveal_protocol}).}
+  \label{tab:map_overview}
+  \begin{tabular}{llcclrr}
+    \toprule
+    \textbf{Bản đồ} & \textbf{Mã} & \textbf{Lưới} & \textbf{Độ khó}
+      & \textbf{Khởi đầu} & \textbf{Tội phạm} & \textbf{Sóng} \\
+    \midrule
+    Khu chợ       & \texttt{medium-3x3-market}       & $3\times3$ & Medium & An (A1)   &  4 & 3 \\
+    Phòng tranh   & \texttt{medium-3x3-gallery}      & $3\times3$ & Medium & Bình (B1) &  4 & 4 \\
+    Bến cảng      & \texttt{medium-4x4-harbor}       & $4\times4$ & Medium & An (A1)   &  6 & 4 \\
+    Nhà hát       & \texttt{medium-4x4-theatre}      & $4\times4$ & Medium & Dũng (D1) &  4 & 6 \\
+    Bảo tàng      & \texttt{medium-5x5-museum}       & $5\times5$ & Medium & Long (E2) & 11 & 5 \\
+    Đài thiên văn & \texttt{expert-5x5-observatory}  & $5\times5$ & Expert & Lan (D2)  & 13 & 8 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\paragraph{Khu chợ (\texttt{medium-3x3-market}).}
+Lưới $3\times3$, độ khó Medium. Nhân vật khởi đầu: An (A1), vô tội. Đáp án có 4 tội phạm, đánh dấu \textbf{(C)} trong Bảng~\ref{tab:map_market}.
+\begin{table}[htbp]
+  \centering\small
+  \caption{Bố cục và đáp án bản đồ Khu chợ. (C): tội phạm; (I): vô tội.}
+  \label{tab:map_market}
+  \begin{tabular}{cccc}
+    \toprule
+    & A & B & C \\
+    \midrule
+    1 & An (I) & \textbf{Bình (C)} & Chi (I) \\
+    2 & Dũng (I) & \textbf{Giang (C)} & Hà (I) \\
+    3 & \textbf{Hùng (C)} & Khoa (I) & \textbf{Lan (C)} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+\noindent Lời khai, theo thứ tự ô (lời khai của nhân vật khởi đầu được đánh dấu $\star$):
+\begin{itemize}\setlength{\itemsep}{0pt}\small
+  \item $\star$ An (A1): ``Dũng (A2) và Chi (C1) đều vô tội.''
+  \item Bình (B1): ``Khoa (B3) vô tội.''
+  \item Chi (C1): ``Hà (C2) vô tội. Trong Hà (C2) và Lan (C3), đúng một người là tội phạm.''
+  \item Dũng (A2): ``Hàng 1 có đúng một tội phạm. Bình (B1) và Giang (B2) hoặc cùng vô tội, hoặc cùng là tội phạm.''
+  \item Giang (B2): ``Số tội phạm ở bốn góc A1, C1, A3 và C3 là số chẵn.''
+  \item Hà (C2): ``Hàng 2 có đúng một tội phạm.''
+  \item Hùng (A3): ``Trong các hàng xóm của Hùng (A3) (kể cả đường chéo) có đúng một tội phạm.''
+  \item Khoa (B3): ``Cột B có đúng hai tội phạm.''
+  \item Lan (C3): ``Hàng 3 có đúng hai tội phạm.''
+\end{itemize}
+
+\paragraph{Phòng tranh (\texttt{medium-3x3-gallery}).}
+Lưới $3\times3$, độ khó Medium. Nhân vật khởi đầu: Bình (B1), vô tội. Đáp án có 4 tội phạm, đánh dấu \textbf{(C)} trong Bảng~\ref{tab:map_gallery}.
+\begin{table}[htbp]
+  \centering\small
+  \caption{Bố cục và đáp án bản đồ Phòng tranh. (C): tội phạm; (I): vô tội.}
+  \label{tab:map_gallery}
+  \begin{tabular}{cccc}
+    \toprule
+    & A & B & C \\
+    \midrule
+    1 & An (I) & Bình (I) & \textbf{Chi (C)} \\
+    2 & \textbf{Dũng (C)} & \textbf{Giang (C)} & Hà (I) \\
+    3 & Hùng (I) & Khoa (I) & \textbf{Lan (C)} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+\noindent Lời khai, theo thứ tự ô (lời khai của nhân vật khởi đầu được đánh dấu $\star$):
+\begin{itemize}\setlength{\itemsep}{0pt}\small
+  \item An (A1): ``Cột A có đúng một tội phạm. Chi (C1) và Lan (C3) hoặc cùng vô tội, hoặc cùng là tội phạm.''
+  \item $\star$ Bình (B1): ``An (A1) và Hùng (A3) đều vô tội.''
+  \item Chi (C1): ``Hàng 1 có đúng một tội phạm.''
+  \item Dũng (A2): ``Hà (C2) vô tội.''
+  \item Giang (B2): ``Chi (C1) là tội phạm.''
+  \item Hà (C2): ``Hàng 2 có đúng hai tội phạm.''
+  \item Hùng (A3): ``Khoa (B3) vô tội. Số tội phạm ở hàng 2 là số chẵn.''
+  \item Khoa (B3): ``Cột B có đúng một tội phạm.''
+  \item Lan (C3): ``Hàng 3 có đúng một tội phạm.''
+\end{itemize}
+
+\paragraph{Bến cảng (\texttt{medium-4x4-harbor}).}
+Lưới $4\times4$, độ khó Medium. Nhân vật khởi đầu: An (A1), vô tội. Đáp án có 6 tội phạm, đánh dấu \textbf{(C)} trong Bảng~\ref{tab:map_harbor}.
+\begin{table}[htbp]
+  \centering\small
+  \caption{Bố cục và đáp án bản đồ Bến cảng. (C): tội phạm; (I): vô tội.}
+  \label{tab:map_harbor}
+  \begin{tabular}{ccccc}
+    \toprule
+    & A & B & C & D \\
+    \midrule
+    1 & An (I) & \textbf{Bình (C)} & Chi (I) & \textbf{Dũng (C)} \\
+    2 & Giang (I) & Hà (I) & \textbf{Hùng (C)} & Khoa (I) \\
+    3 & \textbf{Lan (C)} & Long (I) & Mai (I) & Minh (I) \\
+    4 & Nam (I) & \textbf{Ngọc (C)} & \textbf{Oanh (C)} & Phúc (I) \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+\noindent Lời khai, theo thứ tự ô (lời khai của nhân vật khởi đầu được đánh dấu $\star$):
+\begin{itemize}\setlength{\itemsep}{0pt}\small
+  \item $\star$ An (A1): ``Chi (C1) và Giang (A2) đều vô tội.''
+  \item Bình (B1): ``Hàng 1 có đúng hai tội phạm.''
+  \item Chi (C1): ``Bình (B1) và Dũng (D1) đều là tội phạm. Hàng 1 và hàng 4 có số tội phạm bằng nhau.''
+  \item Dũng (D1): ``Trong Chi (C1) và Hùng (C2), đúng một người là tội phạm.''
+  \item Giang (A2): ``Nam (A4) vô tội. Cột A có đúng một tội phạm.''
+  \item Hà (B2): ``Hàng 2 có đúng một tội phạm.''
+  \item Hùng (C2): ``Hà (B2) vô tội.''
+  \item Khoa (D2): ``Trong các hàng xóm của Khoa (D2) (kể cả đường chéo) có đúng hai tội phạm.''
+  \item Lan (A3): ``Hùng (C2) là tội phạm. Khoa (D2) và Minh (D3) hoặc cùng vô tội, hoặc cùng là tội phạm.''
+  \item Long (B3): ``Trong các hàng xóm của Long (B3) (kể cả đường chéo) có đúng bốn tội phạm.''
+  \item Mai (C3): ``Cột C có đúng hai tội phạm.''
+  \item Minh (D3): ``Hàng 3 có đúng một tội phạm.''
+  \item Nam (A4): ``Phúc (D4) vô tội. Trong Lan (A3), Long (B3) và Ngọc (B4), số tội phạm là số chẵn.''
+  \item Ngọc (B4): ``Cột B có đúng hai tội phạm.''
+  \item Oanh (C4): ``Mai (C3) vô tội. Cột D có đúng một tội phạm.''
+  \item Phúc (D4): ``Trong các hàng xóm của Phúc (D4) (kể cả đường chéo) có đúng một tội phạm.''
+\end{itemize}
+
+\paragraph{Nhà hát (\texttt{medium-4x4-theatre}).}
+Lưới $4\times4$, độ khó Medium. Nhân vật khởi đầu: Dũng (D1), vô tội. Đáp án có 4 tội phạm, đánh dấu \textbf{(C)} trong Bảng~\ref{tab:map_theatre}.
+\begin{table}[htbp]
+  \centering\small
+  \caption{Bố cục và đáp án bản đồ Nhà hát. (C): tội phạm; (I): vô tội.}
+  \label{tab:map_theatre}
+  \begin{tabular}{ccccc}
+    \toprule
+    & A & B & C & D \\
+    \midrule
+    1 & An (I) & Bình (I) & \textbf{Chi (C)} & Dũng (I) \\
+    2 & Giang (I) & \textbf{Hà (C)} & \textbf{Hùng (C)} & Khoa (I) \\
+    3 & Lan (I) & Long (I) & Mai (I) & Minh (I) \\
+    4 & \textbf{Nam (C)} & Ngọc (I) & Oanh (I) & Phúc (I) \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+\noindent Lời khai, theo thứ tự ô (lời khai của nhân vật khởi đầu được đánh dấu $\star$):
+\begin{itemize}\setlength{\itemsep}{0pt}\small
+  \item An (A1): ``Giang (A2) và Lan (A3) đều vô tội. Chi (C1) và Nam (A4) hoặc cùng vô tội, hoặc cùng là tội phạm.''
+  \item Bình (B1): ``Cột A có đúng một tội phạm.''
+  \item Chi (C1): ``Mai (C3) vô tội.''
+  \item $\star$ Dũng (D1): ``Không có tội phạm nào trong cột D.''
+  \item Giang (A2): ``An (A1), người ngay phía trên Giang (A2), vô tội.''
+  \item Hà (B2): ``Cột C có đúng hai tội phạm.''
+  \item Hùng (C2): ``Trong các hàng xóm của Hùng (C2) (kể cả đường chéo) có đúng hai tội phạm.''
+  \item Khoa (D2): ``An (A1) và Bình (B1) đều vô tội.''
+  \item Lan (A3): ``Giang (A2), người ngay phía trên Lan (A3), vô tội.''
+  \item Long (B3): ``Trong các hàng xóm của Long (B3) (kể cả đường chéo) có đúng ba tội phạm.''
+  \item Mai (C3): ``Trong Hà (B2), Hùng (C2) và Long (B3), có đúng hai tội phạm. Hai người đó ở hai ô chung cạnh, không tính đường chéo.''
+  \item Minh (D3): ``Khoa (D2), người ngay phía trên Minh (D3), vô tội.''
+  \item Nam (A4): ``Ngọc (B4) và Oanh (C4) đều vô tội.''
+  \item Ngọc (B4): ``Hàng 4 có đúng một tội phạm.''
+  \item Oanh (C4): ``Ngọc (B4), người ngay bên trái Oanh (C4), vô tội.''
+  \item Phúc (D4): ``Minh (D3), người ngay phía trên Phúc (D4), vô tội.''
+\end{itemize}
+
+\paragraph{Bảo tàng (\texttt{medium-5x5-museum}).}
+Lưới $5\times5$, độ khó Medium. Nhân vật khởi đầu: Long (E2), vô tội. Đáp án có 11 tội phạm, đánh dấu \textbf{(C)} trong Bảng~\ref{tab:map_museum}.
+\begin{table}[htbp]
+  \centering\small
+  \caption{Bố cục và đáp án bản đồ Bảo tàng. (C): tội phạm; (I): vô tội.}
+  \label{tab:map_museum}
+  \begin{tabular}{cccccc}
+    \toprule
+    & A & B & C & D & E \\
+    \midrule
+    1 & An (I) & \textbf{Bình (C)} & Chi (I) & \textbf{Dũng (C)} & Giang (I) \\
+    2 & \textbf{Hà (C)} & Hùng (I) & Khoa (I) & \textbf{Lan (C)} & Long (I) \\
+    3 & Mai (I) & \textbf{Minh (C)} & \textbf{Nam (C)} & Ngọc (I) & Oanh (I) \\
+    4 & \textbf{Phúc (C)} & Quân (I) & \textbf{Sơn (C)} & Tâm (I) & \textbf{Thảo (C)} \\
+    5 & Trang (I) & \textbf{Tuấn (C)} & Uyên (I) & Vy (I) & \textbf{Yến (C)} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+\noindent Lời khai, theo thứ tự ô (lời khai của nhân vật khởi đầu được đánh dấu $\star$):
+\begin{itemize}\setlength{\itemsep}{0pt}\small
+  \item An (A1): ``Hàng 2 có số tội phạm bằng hàng 1. B2 và C2 có cùng trạng thái: hoặc cả hai là tội phạm, hoặc cả hai vô tội.''
+  \item Bình (B1): ``Trong các hàng xóm của Bình (B1) (kể cả đường chéo) có đúng một tội phạm.''
+  \item Chi (C1): ``Trong A2 và B2, đúng một người là tội phạm.''
+  \item Dũng (D1): ``Trong các hàng xóm của Dũng (D1) (kể cả đường chéo) có đúng một tội phạm.''
+  \item Giang (E1): ``B2 và E2 hoặc cùng vô tội, hoặc cùng là tội phạm.''
+  \item Hà (A2): ``Hàng 1 có đúng hai tội phạm.''
+  \item Hùng (B2): ``Trong A3, B3 và C3 có đúng hai tội phạm.''
+  \item Khoa (C2): ``A3 và B3 khác trạng thái; B3 và C3 cùng trạng thái.''
+  \item Lan (D2): ``Hàng 3 và hàng 2 có số tội phạm bằng nhau.''
+  \item $\star$ Long (E2): ``An (A1), Chi (C1) và Giang (E1) đều vô tội.''
+  \item Mai (A3): ``Số tội phạm ở hàng 4 bằng số người vô tội ở hàng 3.''
+  \item Minh (B3): ``A4 và C4 cùng trạng thái.''
+  \item Nam (C3): ``C4 và E4 cùng trạng thái. A4 và B4 khác trạng thái.''
+  \item Ngọc (D3): ``Cột D có đúng hai tội phạm.''
+  \item Oanh (E3): ``Hàng 3 có đúng hai tội phạm.''
+  \item Phúc (A4): ``Số tội phạm ở hàng 5 bằng số người vô tội ở hàng 4.''
+  \item Quân (B4): ``A5 và C5 cùng trạng thái.''
+  \item Sơn (C4): ``B5 và C5 khác trạng thái.''
+  \item Tâm (D4): ``Trong B5, D5 và E5 có đúng hai tội phạm.''
+  \item Thảo (E4): ``B5 và D5 khác trạng thái.''
+  \item Trang (A5): ``Hàng 5 có đúng hai tội phạm.''
+  \item Tuấn (B5): ``Trong các hàng xóm của Tuấn (B5) (kể cả đường chéo) có đúng hai tội phạm.''
+  \item Uyên (C5): ``Cột C có đúng hai tội phạm.''
+  \item Vy (D5): ``Trong các hàng xóm của Vy (D5) (kể cả đường chéo) có đúng ba tội phạm.''
+  \item Yến (E5): ``Trong các hàng xóm của Yến (E5) (kể cả đường chéo) có đúng một tội phạm.''
+\end{itemize}
+
+\paragraph{Đài thiên văn (\texttt{expert-5x5-observatory}).}
+Lưới $5\times5$, độ khó Expert. Nhân vật khởi đầu: Lan (D2), vô tội. Đáp án có 13 tội phạm, đánh dấu \textbf{(C)} trong Bảng~\ref{tab:map_observatory}.
+\begin{table}[htbp]
+  \centering\small
+  \caption{Bố cục và đáp án bản đồ Đài thiên văn. (C): tội phạm; (I): vô tội.}
+  \label{tab:map_observatory}
+  \begin{tabular}{cccccc}
+    \toprule
+    & A & B & C & D & E \\
+    \midrule
+    1 & An (I) & Bình (I) & \textbf{Chi (C)} & \textbf{Dũng (C)} & \textbf{Giang (C)} \\
+    2 & Hà (I) & \textbf{Hùng (C)} & Khoa (I) & Lan (I) & \textbf{Long (C)} \\
+    3 & Mai (I) & \textbf{Minh (C)} & \textbf{Nam (C)} & \textbf{Ngọc (C)} & Oanh (I) \\
+    4 & \textbf{Phúc (C)} & Quân (I) & Sơn (I) & Tâm (I) & \textbf{Thảo (C)} \\
+    5 & Trang (I) & \textbf{Tuấn (C)} & \textbf{Uyên (C)} & Vy (I) & \textbf{Yến (C)} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+\noindent Lời khai, theo thứ tự ô (lời khai của nhân vật khởi đầu được đánh dấu $\star$):
+\begin{itemize}\setlength{\itemsep}{0pt}\small
+  \item An (A1): ``Trong các hàng xóm của An (A1) (kể cả đường chéo) có đúng một tội phạm.''
+  \item Bình (B1): ``Trong các hàng xóm của Bình (B1) (kể cả đường chéo) có đúng hai tội phạm.''
+  \item Chi (C1): ``B1 và D1 khác trạng thái. A1 cùng trạng thái với A2; E1 cùng trạng thái với B2. Trong A2, B2, C2 có đúng một tội phạm.''
+  \item Dũng (D1): ``Trong các hàng xóm của Dũng (D1) (kể cả đường chéo) có đúng ba tội phạm.''
+  \item Giang (E1): ``Hàng 3 có số tội phạm bằng hàng 1. Họ đứng ở các ô liên tiếp trong hàng 3, không có người vô tội xen giữa.''
+  \item Hà (A2): ``An (A1), người ngay phía trên Hà (A2), vô tội.''
+  \item Hùng (B2): ``Bình (B1), người ngay phía trên Hùng (B2), vô tội.''
+  \item Khoa (C2): ``Hàng 2 có đúng hai tội phạm. A2 và D2 cùng trạng thái. Số tội phạm trong A2, D2, E2 là số lẻ.''
+  \item $\star$ Lan (D2): ``Hàng 1 có đúng ba tội phạm, đứng ở ba ô liên tiếp nhau, không có người vô tội xen giữa.''
+  \item Long (E2): ``Giang (E1), người ngay phía trên Long (E2), là tội phạm.''
+  \item Mai (A3): ``Hàng 3 có đúng ba tội phạm.''
+  \item Minh (B3): ``Trong các hàng xóm của Minh (B3) (kể cả đường chéo) có đúng ba tội phạm.''
+  \item Nam (C3): ``Số tội phạm trong A3, B3, E3 là số lẻ. B3 cùng trạng thái với A4; E3 cùng trạng thái với B4. Trong A4, B4, C4 có đúng một tội phạm.''
+  \item Ngọc (D3): ``Trong các hàng xóm của Ngọc (D3) (kể cả đường chéo) có đúng ba tội phạm.''
+  \item Oanh (E3): ``Trong các hàng xóm của Oanh (E3) (kể cả đường chéo) có đúng ba tội phạm.''
+  \item Phúc (A4): ``Hàng 5 có số tội phạm bằng hàng 1.''
+  \item Quân (B4): ``Hàng 4 có đúng hai tội phạm.''
+  \item Sơn (C4): ``Hàng 4 và hàng 2 có số tội phạm bằng nhau. A4 và E4 cùng trạng thái. Số tội phạm trong A4, D4, E4 là số chẵn (có thể bằng 0).''
+  \item Tâm (D4): ``Trong các hàng xóm của Tâm (D4) (kể cả đường chéo) có đúng năm tội phạm.''
+  \item Thảo (E4): ``Trong A5 và B5 có số tội phạm bằng trong D5 và E5.''
+  \item Trang (A5): ``Hàng 5 có đúng ba tội phạm.''
+  \item Tuấn (B5): ``Trong các hàng xóm của Tuấn (B5) (kể cả đường chéo) có đúng hai tội phạm.''
+  \item Uyên (C5): ``A5 và D5 cùng trạng thái. Trong A5 và D5 có ít tội phạm hơn trong B5 và E5.''
+  \item Vy (D5): ``Trong các hàng xóm của Vy (D5) (kể cả đường chéo) có đúng ba tội phạm.''
+  \item Yến (E5): ``Trong các hàng xóm của Yến (E5) (kể cả đường chéo) có đúng một tội phạm.''
+\end{itemize}
