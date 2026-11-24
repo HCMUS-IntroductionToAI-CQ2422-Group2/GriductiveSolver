@@ -1,2 +1,61 @@
 \subsection{Kết nối API và backend}
 % Note: Viết một đoạn ngắn về luồng UI gửi yêu cầu qua API đến Engine/Agent và nhận trạng thái công khai để cập nhật giao diện; dẫn đặc tả API chi tiết ở phụ lục nếu cần.
+Frontend giao tiếp với backend qua các endpoint FastAPI. Các mô hình
+Pydantic quy định cấu trúc yêu cầu và phản hồi. Backend trả về trạng
+thái công khai của ván, gồm mã màn chơi, kích thước bàn, danh sách ô,
+các manh mối đã mở và cờ hoàn thành. Trường \texttt{is\_criminal}
+nhận \texttt{true} hoặc \texttt{false} khi trạng thái của ô đã được
+chứng minh, và nhận \texttt{null} khi chưa xác định.
+
+Khi người chơi gửi nhận định, frontend gọi
+\nolinkurl{POST /api/game/verdicts} với \texttt{cell\_id} và
+\texttt{is\_criminal}. Engine kiểm tra nhận định dựa trên thông tin
+hiện có, sau đó API trả về \texttt{outcome} và \texttt{state}.
+Chỉ kết quả \texttt{ACCEPTED} cập nhật trạng thái ô và mở manh mối
+gắn với ô. Nhận định chưa đủ căn cứ vẫn được xử lý với HTTP~200 và
+\texttt{outcome} là \texttt{NOT\_PROVABLE}. API trả HTTP~404 nếu
+mã ô không tồn tại và HTTP~422 nếu dữ liệu gửi lên sai kiểu.
+
+Endpoint \nolinkurl{GET /api/game/hint} trả về nhận định được đề xuất
+và các truy vấn SAT dùng để suy luận, đồng thời giữ nguyên trạng
+thái ván. Endpoint \nolinkurl{POST /api/game/auto-solve} tiếp tục
+từ trạng thái hiện tại và trả về trạng thái cuối cùng cùng
+\texttt{trace}, cho phép frontend phát lại từng bước giải.
+
+Bảng~\ref{tab:backend-endpoints} tóm tắt các endpoint được frontend
+sử dụng. Các thao tác nạp, đọc và khởi động lại màn chơi đều trả
+về cùng một cấu trúc \texttt{PublicStateResponse}.
+
+\begin{table}[htbp]
+    \centering
+    \caption{Các endpoint phục vụ bàn chơi}
+    \label{tab:backend-endpoints}
+    \small
+    \begin{tabularx}{\linewidth}{
+        @{}l l >{\raggedright\arraybackslash}X@{}
+    }
+        \toprule
+        \textbf{Phương thức} & \textbf{Đường dẫn}
+            & \textbf{Dữ liệu yêu cầu và phản hồi} \\
+        \midrule
+        GET & \nolinkurl{/api/puzzles}
+            & Trả về danh sách mã màn chơi. \\
+        GET & \nolinkurl{/api/game}
+            & Trả về trạng thái công khai hiện tại. \\
+        POST & \nolinkurl{/api/game/load}
+            & Nhận \texttt{puzzle\_id}, trả về trạng thái khởi tạo
+              của màn được chọn. \\
+        POST & \nolinkurl{/api/game/restart}
+            & Trả về trạng thái ban đầu của màn hiện tại. \\
+        POST & \nolinkurl{/api/game/verdicts}
+            & Nhận \texttt{cell\_id} và \texttt{is\_criminal},
+              trả về \texttt{outcome} và \texttt{state}. \\
+        GET & \nolinkurl{/api/game/hint}
+            & Trả về \texttt{status}, \texttt{verdict} và
+              \texttt{sat\_queries}. \\
+        POST & \nolinkurl{/api/game/auto-solve}
+            & Trả về \texttt{status}, \texttt{state} và
+              \texttt{trace}. \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
