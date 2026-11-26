@@ -2,7 +2,7 @@
 \label{sec:system_architecture}
 \begin{sloppypar}
 
-Hệ thống được tổ chức thành bốn lớp, trong đó mỗi lớp chỉ phụ thuộc vào lớp ngay bên dưới (Hình 3). Giao diện web đảm nhiệm phần hiển thị và tương tác với người dùng, còn API thực hiện việc chuyển đổi dữ liệu. Luật chơi và trạng thái ván đấu được quản lý tại Game Engine. Riêng việc kiểm tra xem các thông tin công khai có còn khả năng được thỏa mãn hay không được xử lý bởi một bộ kiểm tra ràng buộc độc lập, có thể thay thế khi cần.
+Hệ thống được tổ chức thành bốn lớp, trong đó mỗi lớp chỉ phụ thuộc vào lớp ngay bên dưới (Hình~\ref{fig:architecture}). Giao diện web đảm nhiệm phần hiển thị và tương tác với người dùng, còn API thực hiện việc chuyển đổi dữ liệu. Luật chơi và trạng thái ván đấu được quản lý tại Game Engine. Riêng việc kiểm tra xem các thông tin công khai có còn khả năng được thỏa mãn hay không được xử lý bởi một bộ kiểm tra ràng buộc độc lập, có thể thay thế khi cần.
 
 \begin{figure}[htbp]
   \centering
@@ -42,58 +42,55 @@ Hệ thống được tổ chức thành bốn lớp, trong đó mỗi lớp ch�
     \draw[arr, dashed] (dpll.north) -- node[lbl] {cài đặt} (-4.0, -6.95);
     \draw[arr, dashed] (brute.north) -- node[lbl] {cài đặt} (4.0, -6.95);
   \end{tikzpicture}
-  \caption{Kiến trúc hệ thống. Mũi tên liền: lời gọi; mũi tên nét đứt: lớp
-    cài đặt giao diện \texttt{ConstraintChecker}; mũi tên ``nộp'' là lời gọi
-    \texttt{submit\_verdict} của tác nhân. Đáp án của bản đồ chỉ nằm
-    trong khối Maps và \texttt{GameEngine}, không đi lên API.}
+  \caption{Kiến trúc hệ thống. Mũi tên liền biểu diễn lời gọi, mũi tên nét
+    đứt biểu diễn quan hệ cài đặt giao diện \texttt{ConstraintChecker}, còn mũi
+    tên ``nộp'' là lời gọi \texttt{submit\_verdict} từ tác nhân. Đáp án của bản
+    đồ chỉ tồn tại trong khối Maps và \texttt{GameEngine}, không được chuyển lên
+    API.}
   \label{fig:architecture}
 \end{figure}
 
-\paragraph{Trách nhiệm từng lớp.}
-Bảng~\ref{tab:module_roles} liệt kê các module chính cùng dữ liệu vào và ra
-của chúng.
-\begin{itemize}
-  \item \textbf{FrontEnd} hiển thị trạng thái công khai và gửi thao tác của
-    người chơi. Nó không biết đáp án và không tự quyết định phán quyết nào đúng.
-  \item \textbf{API} (\nolinkurl{BackEnd/APIs/}) giữ một đối tượng
-    \texttt{GameEngine} cho ván đang chơi trong \texttt{app.state.engine}. Mọi
-    endpoint đọc hoặc ghi ván đều chạy trong khóa \texttt{game\_lock}
-    (\texttt{threading.Lock}), nên hai yêu cầu đồng thời không xen kẽ nhau.
-    Hàm \texttt{to\_public\_json} chuyển \texttt{PublicState} thành JSON.
-  \item \textbf{GameEngine} (\nolinkurl{BackEnd/GameEngine/}) giữ đề bài,
-    trạng thái ván và luật chấp nhận phán quyết. Đây là nơi duy nhất được phép
-    thay đổi trạng thái ván.
-  \item \textbf{Bộ kiểm tra ràng buộc} trả lời một câu hỏi duy nhất: thông tin
-    công khai, cộng với một giả thiết tùy chọn, có thỏa được không.
-\end{itemize}
+\paragraph{Trách nhiệm của từng lớp}
+Phần giao diện (FrontEnd) chỉ hiển thị trạng thái công khai và gửi thao tác của
+người chơi lên backend; nó không nắm đáp án và cũng không tự quyết định phán
+quyết nào là đúng. Lớp API (\nolinkurl{BackEnd/APIs/}) giữ một đối tượng
+\texttt{GameEngine} duy nhất cho ván đang chơi trong \texttt{app.state.engine}.
+Mọi endpoint đọc hoặc ghi ván đều được thực thi bên trong khóa
+\texttt{game\_lock} (\texttt{threading.Lock}), nhờ đó hai yêu cầu đến cùng lúc
+không thể xen kẽ nhau, và kết quả trả về được chuyển thành JSON thông qua hàm
+\texttt{to\_public\_json}. Game Engine (\nolinkurl{BackEnd/GameEngine/}) lưu
+giữ đề bài, trạng thái ván và luật chấp nhận phán quyết, đồng thời là thành phần
+duy nhất được phép thay đổi trạng thái ván. Cuối cùng, bộ kiểm tra ràng buộc chỉ
+trả lời một câu hỏi: thông tin công khai, khi kết hợp với một giả thiết tùy
+chọn, có thỏa được hay không. Bảng~\ref{tab:module_roles} tổng hợp các module
+chính cùng dữ liệu vào và ra của chúng.
 
-\paragraph{Tách luật chơi khỏi bộ giải.}
-\texttt{ConstraintChecker} được khai báo bằng \texttt{typing.Protocol} với một
-phương thức \texttt{has\_solution}. Game Engine và \texttt{DeductiveAgent} chỉ
-gọi qua giao diện này. Vì vậy cùng một engine chạy được với hai bộ kiểm tra:
-\texttt{DPLLChecker} (mã hóa CNF rồi giải bằng DPLL, Mục~4) và
-\texttt{BruteForceChecker} (tìm kiếm quay lui trực tiếp trên các đối tượng ràng
-buộc, Mục~\ref{sec:clue_representation}). Backend chọn bộ kiểm tra ở đúng một
-dòng trong \texttt{main.py}, \texttt{checker: ConstraintChecker =
-DPLLChecker()}. Các ca kiểm thử engine dùng \texttt{BruteForceChecker}; ca
-\texttt{INCONSISTENT} của \texttt{test\_game\_engine} và toàn bộ
-\texttt{test\_deductive\_agent} được tham số hóa để chạy trên cả hai bộ kiểm
-tra. Hai cài đặt độc lập cho cùng kết quả là một cách đối chiếu chéo tính đúng
-đắn của bộ mã hóa CNF.
+\paragraph{Tách luật chơi khỏi bộ giải}
+\texttt{ConstraintChecker} được khai báo dưới dạng \texttt{typing.Protocol} với
+một phương thức duy nhất là \texttt{has\_solution}, và cả Game Engine lẫn
+\texttt{DeductiveAgent} đều chỉ làm việc với bộ kiểm tra thông qua giao diện này.
+Nhờ vậy, cùng một engine có thể chạy với hai cài đặt khác nhau: \texttt{DPLLChecker}
+mã hóa ràng buộc sang CNF rồi giải bằng DPLL (Mục~4), còn \texttt{BruteForceChecker}
+tìm kiếm quay lui trực tiếp trên các đối tượng ràng buộc
+(Mục~\ref{sec:clue_representation}). Việc chọn bộ kiểm tra nào chỉ nằm ở một
+dòng trong \texttt{main.py}, cụ thể là \texttt{checker: ConstraintChecker =
+DPLLChecker()}. Trong bộ kiểm thử, các ca của engine chủ yếu dùng
+\texttt{BruteForceChecker}; riêng ca \texttt{INCONSISTENT} của
+\texttt{test\_game\_engine} và toàn bộ \texttt{test\_deductive\_agent} được tham
+số hóa để chạy trên cả hai bộ kiểm tra. Việc hai cài đặt độc lập cho ra cùng
+một kết quả cũng là một cách đối chiếu chéo tính đúng đắn của bộ mã hóa CNF.
 
-\paragraph{Ba nơi dùng chung Game Engine.}
-Luật chấp nhận phán quyết chỉ được cài đặt một lần, trong
-\texttt{GameEngine.submit\_verdict}, và được ba thành phần dùng lại:
-\begin{enumerate}
-  \item API endpoint \nolinkurl{/api/game/verdicts}, khi người chơi nộp phán quyết;
-  \item \texttt{DeductiveAgent.solve}, nộp từng nước đi đã chứng minh vào
-    engine. Nếu engine từ chối, tác nhân ném \texttt{MoveRejected} và API trả
-    HTTP~409;
-  \item \texttt{validate\_puzzle}, cho một ``người chơi hoàn hảo'' biết đáp án
-    nộp phán quyết qua engine thật để kiểm tra bản đồ không cần đoán.
-\end{enumerate}
-Nhờ vậy tác nhân, bộ kiểm chứng bản đồ và người chơi luôn chịu cùng một luật.
-Tác nhân không thể ``giải được'' một ván mà người chơi thật không giải được.
+\paragraph{Dùng chung một luật chấp nhận phán quyết}
+Luật chấp nhận phán quyết chỉ được cài đặt một lần duy nhất trong
+\texttt{GameEngine.submit\_verdict} và được ba thành phần khác nhau tái sử dụng.
+Thứ nhất, endpoint \nolinkurl{/api/game/verdicts} gọi hàm này mỗi khi người chơi
+nộp phán quyết. Thứ hai, \texttt{DeductiveAgent.solve} nộp từng nước đi mà tác
+nhân đã chứng minh vào engine; nếu engine từ chối, tác nhân ném ngoại lệ
+\texttt{MoveRejected} và API trả về HTTP~409. Thứ ba, \texttt{validate\_puzzle}
+cho một ``người chơi hoàn hảo'' biết trước đáp án nộp phán quyết qua engine thật
+để xác nhận bản đồ giải được mà không cần đoán. Do cả ba cùng chịu một luật, tác
+nhân và bộ kiểm chứng bản đồ không thể ``giải được'' một ván mà người chơi thật
+lại không giải được.
 
 \begin{table}[htbp]
   \centering\small
