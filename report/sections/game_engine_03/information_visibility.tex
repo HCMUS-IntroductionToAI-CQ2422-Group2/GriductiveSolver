@@ -1,3 +1,66 @@
 \subsection{Kiểm soát thông tin công khai và thông tin ẩn}
-% Note: Trình bày cách ngăn đáp án và clue chưa mở xuất hiện trong Public State, phản hồi API hoặc đầu vào của Agent.
+\label{sec:information_visibility}
+\begin{sloppypar}
 
+Luật không đoán chỉ có ý nghĩa nếu người chơi và tác nhân không đọc được đáp án
+hay lời khai chưa lật. Hệ thống có hai loại thông tin ẩn: đáp án
+\texttt{PuzzleDefinition.solution}, và các lời khai mà \texttt{source\_cell\_id}
+chưa được chứng minh. Chúng được chặn ở ba lớp.
+
+\paragraph{Lớp 1: Game Engine.}
+\texttt{PuzzleDefinition} chỉ được lưu trong thuộc tính riêng
+\texttt{\_puzzle} của engine. Hàm duy nhất trao dữ liệu ra ngoài,
+\texttt{get\_public\_state}, chọn lọc từ đề bài:
+\texttt{PublicState} không có trường đáp án, và \texttt{revealed\_clues} chỉ gồm
+lời khai công khai hoặc đã lật (Mục~\ref{sec:game_state}). Bộ kiểm tra không
+nhận \texttt{PuzzleDefinition}; chữ ký \texttt{has\_solution(public\_state,
+assumption)} chỉ cho nó \texttt{PublicState}. \texttt{DPLLChecker} mã hóa đúng
+\texttt{revealed\_clues} và \texttt{proved\_statuses} của ảnh chụp, nên không
+có đường nào để lời khai ẩn đi vào $\mathit{KB}_t$. Ngoại lệ duy nhất là
+\texttt{validate\_puzzle}: khi kiểm tra nghiệm duy nhất, hàm này tự dựng một
+\texttt{PublicState} chứa \emph{mọi} lời khai. Đây là bước kiểm chứng của người
+thiết kế, chạy ngoài ván chơi, và không đi qua engine.
+
+\paragraph{Lớp 2: API.}
+Mọi phản hồi chứa trạng thái ván đều đi qua \texttt{to\_public\_json}, hàm này
+chỉ đọc từ \texttt{PublicState}. Dữ liệu được rút gọn thêm khi chuyển sang
+JSON:
+\begin{itemize}
+  \item mỗi ô có \texttt{is\_criminal} lấy từ \texttt{proved\_statuses}, và
+    nhận \texttt{null} nếu chưa được chứng minh;
+  \item mỗi lời khai chỉ gồm \texttt{id}, \texttt{source\_cell\_id},
+    \texttt{description\_nl} và \texttt{referenced\_cell\_ids}. Đối tượng ràng
+    buộc hình thức không được gửi đi;
+  \item \texttt{response\_model} của FastAPI (\texttt{PublicStateResponse})
+    lọc lại phản hồi theo lược đồ khai báo, nên một trường thừa vô tình thêm vào
+    cũng không lọt ra ngoài.
+\end{itemize}
+Các endpoint gợi ý và tự giải trả thêm danh sách \texttt{sat\_queries}. Đây là
+kết quả của các lời gọi \texttt{has\_solution} trên ảnh chụp công khai, nên
+cũng chỉ phản ánh thông tin công khai.
+
+\paragraph{Lớp 3: tác nhân và giao diện.}
+\texttt{DeductiveAgent.next\_move} và \texttt{classify\_all} nhận tham số
+\texttt{PublicState}. \texttt{solve} chỉ lấy dữ liệu qua
+\texttt{engine.get\_public\_state()} và \texttt{submit\_verdict}. Giao diện chỉ
+nhận JSON từ API. Ở chế độ ngoại tuyến (không kết nối được backend), lớp
+\texttt{MockGameApi} từ chối mọi thao tác nộp phán quyết, gợi ý và tự giải
+thay vì tự quyết định đúng sai, vì phía giao diện không có đáp án.
+
+\paragraph{Kiểm chứng.}
+Ca \texttt{test\_initial\_state\_does\_not\_\allowbreak expose\_hidden\_\allowbreak clues\_or\_answers}
+(module \texttt{test\_maps}) chạy trên cả sáu bản đồ. Nó kiểm tra rằng JSON công khai ở đầu ván chỉ có đúng
+một ô đã xác định (nhân vật khởi đầu, vô tội), chỉ có đúng lời khai của nhân vật
+đó, và không có khóa \texttt{solution}. Ca
+\texttt{test\_clues\_unlock\_at\_the\_right\_moment} kiểm tra rằng lời khai
+chỉ xuất hiện sau khi ô sở hữu nó được chấp nhận.
+
+\paragraph{Giới hạn.}
+Python không có cơ chế thuộc tính riêng tư thực sự: mã chạy cùng tiến trình vẫn
+có thể đọc \texttt{engine.\_puzzle}. Ranh giới ở lớp 1 vì vậy là ranh giới theo
+quy ước giao diện, được bảo đảm bằng kiểm thử. Ranh giới cứng là ranh giới tiến
+trình ở lớp 2: giao diện chạy trong trình duyệt chỉ thấy những gì
+\texttt{to\_public\_json} gửi đi. Ngoài ra, \texttt{referenced\_cell\_ids} cho
+biết lời khai nhắc tới những ô nào. Thông tin này đã có sẵn trong câu tiếng Việt
+của lời khai, nên không làm lộ thêm điều gì.
+\end{sloppypar}

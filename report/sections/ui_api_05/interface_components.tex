@@ -1,2 +1,73 @@
 \subsection{Giao diện và thao tác chính}
-% Note: Chèn một ảnh giao diện; mô tả ngắn cách chọn map, đưa ra verdict và xem clue/hint. Không cần liệt kê từng thành phần giao diện.
+\label{sec:ui_components}
+\begin{sloppypar}
+
+Giao diện là một trang web viết bằng HTML, CSS và JavaScript thuần (ES module),
+không cần bước build. Nó được FastAPI phục vụ tại \nolinkurl{/app/}.
+Hình~\ref{fig:ui_screenshot} là ảnh chụp giữa ván trên bản đồ Bến cảng, sau
+khi bảy nhân vật đã được xác định.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\linewidth]{figures/ui_screenshot.png}
+  \caption{Giao diện chơi trên bản đồ Bến cảng ($4\times4$). Bên trái là bàn
+    chơi: thẻ xanh là người vô tội, thẻ đỏ là tội phạm, thẻ trắng là ô chưa
+    xác định. Bên phải là tab \emph{Hồ sơ}, liệt kê các lời khai đã lật kèm thẻ
+    tên những người được nhắc tới.}
+  \label{fig:ui_screenshot}
+\end{figure}
+
+\paragraph{Chọn bản đồ.}
+Nút chọn vụ án ở thanh trên cùng liệt kê các mã bản đồ lấy từ
+\nolinkurl{/api/puzzles}, kèm kích thước và độ khó được tách ra từ chính mã bản
+đồ (ví dụ \texttt{medium-4x4-harbor} hiển thị thành ``4×4 · Vừa''). Chọn một
+bản đồ gọi \nolinkurl{/api/game/load} và bắt đầu ván mới. Phím \texttt{N}
+chuyển sang bản đồ kế tiếp trong danh sách.
+
+\paragraph{Đưa ra phán quyết.}
+Người chơi chọn một thẻ bằng chuột hoặc phím mũi tên, rồi bấm \emph{Vô tội} hay
+\emph{Tội phạm} trong hộp nổi (phím tắt \texttt{I} và \texttt{C}). Giao diện
+gửi phán quyết lên backend và phản hồi theo trường \texttt{outcome}:
+\begin{itemize}
+  \item \texttt{ACCEPTED}: thẻ đổi màu, lời khai của nhân vật hiện ngay trên
+    thẻ và được thêm vào tab \emph{Hồ sơ} với nhãn ``mới'';
+  \item \texttt{NOT\_PROVABLE} (``Chưa đủ căn cứ'') và \texttt{CONTRADICTED}
+    (``Mâu thuẫn''): thẻ rung, bộ đếm lỗi tăng một, trạng thái ván giữ nguyên;
+  \item \texttt{ALREADY\_PROVED} và \texttt{INCONSISTENT} được báo bằng thông
+    báo ngắn hoặc hộp thoại.
+\end{itemize}
+Thanh tiến độ phía trên bàn chơi tô màu theo thứ tự các ô đã được chứng minh.
+Thanh trên cùng hiển thị đồng hồ, số lỗi, số lần dùng gợi ý và nút tạm dừng.
+Khi tạm dừng, bàn chơi và hồ sơ bị che lại.
+
+\paragraph{Đọc lời khai.}
+Mỗi mục trong tab \emph{Hồ sơ} hiển thị nguyên văn \texttt{description\_nl}
+cùng các thẻ tên lấy từ \texttt{referenced\_cell\_ids}, tô màu theo trạng thái
+hiện tại của từng người. Lời khai có mọi ô được nhắc tới đã xác định được đánh
+dấu ``Đã dùng hết'' và có thể ẩn đi. Di chuột lên một lời khai, hoặc lên thẻ của
+người nói, sẽ vẽ các ``sợi chỉ'' SVG nối người nói với những người được nhắc
+tới trên bàn chơi.
+
+\paragraph{Gợi ý và AI tự giải.}
+Nút \emph{Gợi ý} (phím \texttt{H}) gọi \nolinkurl{/api/game/hint} và hoạt động
+theo hai nấc. Lần bấm đầu chỉ chọn ô đã suy ra được, không cho biết kết luận.
+Lần bấm thứ hai mới hiện kết luận, kèm lý do lấy từ truy vấn SAT không thỏa
+được, ví dụ ``Nếu Chi là tội phạm thì mâu thuẫn với manh mối''. Gợi ý không thay
+đổi trạng thái ván; người chơi vẫn phải tự nộp phán quyết. Nút \emph{AI tự giải}
+gọi \nolinkurl{/api/game/auto-solve} rồi phát lại trace trả về ngay trên bàn
+chơi. Thanh điều khiển cho phép tạm dừng, đi từng bước, tua về đầu hoặc tới
+cuối, và đổi tốc độ $0{,}5\times$, $1\times$, $2\times$. Tab \emph{AI} ghi mỗi
+bước thành một mục, gồm hai truy vấn \textsc{Sat} cho ô được kết luận (giả sử
+tội phạm và giả sử vô tội) cùng kết quả thỏa được hay không. Các truy vấn khác
+của bước đó nằm trong phần thu gọn. Nhật ký chỉ hiển thị những gì backend trả
+về và không tự suy ra lời khai nào là ``căn cứ'' của bước. Nút \emph{Tự chơi
+tiếp} dừng phát lại tại bước hiện tại và trả quyền chơi cho người chơi
+(Mục~\ref{sec:ui_api_flow}). Nút vòng tròn bên phải gọi
+\nolinkurl{/api/game/restart}.
+
+\paragraph{Các tiện ích khác.}
+Giao diện có chế độ sáng và tối, hướng dẫn tương tác bốn bước ở lần mở đầu
+tiên, hộp thoại cách chơi và phím tắt, cùng các tùy chọn âm thanh, giảm chuyển
+động và tốc độ phát lại mặc định. Các tùy chọn này được lưu trong
+\texttt{localStorage} của trình duyệt.
+\end{sloppypar}

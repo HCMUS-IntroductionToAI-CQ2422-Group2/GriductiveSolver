@@ -1,3 +1,90 @@
 \subsection{Biểu diễn Clue và Constraint}
-% Note: Mô tả cấu trúc Clue, source_cell_id và các kiểu Constraint; tập trung cách cài đặt, tránh lặp lại ngữ nghĩa ở phần mô hình.
+\label{sec:clue_representation}
+\begin{sloppypar}
 
+Mục~\ref{sec:clue_semantics} đã nêu ngữ nghĩa logic và cách mã hóa CNF của bảy
+dạng ràng buộc. Mục này trình bày cách chúng được cài đặt thành dữ liệu trong
+\texttt{constraints.py} và cách phía Game Engine đọc chúng.
+
+\paragraph{Lời khai gồm hai phần tách biệt.}
+Mỗi \texttt{Clue} mang song song một câu tiếng Việt
+(\texttt{description\_nl}) và một ràng buộc hình thức (\texttt{constraint}).
+Hệ thống không bao giờ phân tích câu văn. Engine và bộ kiểm tra chỉ đọc
+\texttt{constraint}; giao diện chỉ hiển thị \texttt{description\_nl}. Người
+thiết kế bản đồ chịu trách nhiệm giữ hai phần khớp nhau. Ví dụ, lời khai của
+Hùng trong bản đồ Phòng tranh được khai báo như sau:
+\begin{lstlisting}[language=Python, numbers=none]
+Clue(
+    id=3,
+    source_cell_id=6,
+    constraint=AllOf((
+        Fact(7, False),
+        ParityConstraint(Count((3, 4, 5)), is_odd=False),
+    )),
+    description_nl=...,  # "Khoa (B3) vo toi. So toi pham o hang 2 la so chan."
+)
+\end{lstlisting}
+
+\paragraph{Các kiểu ràng buộc.}
+Mỗi kiểu là một \texttt{dataclass(frozen=True)} riêng, không có phương thức
+đánh giá. Kiểu tổng \texttt{Constraint} là hợp
+\texttt{Fact | Same | Different | CountConstraint | ParityConstraint |
+ConnectedConstraint | AllOf}.
+\begin{itemize}
+  \item \texttt{Count(targets, is\_criminal=True)} không phải ràng buộc mà là
+    biểu thức ``số ô trong \texttt{targets} có trạng thái đã cho''. Nó được
+    dùng lại trong \texttt{CountConstraint} và \texttt{ParityConstraint}.
+  \item \texttt{CountConstraint(left, comparison, right)} so sánh một
+    \texttt{Count} với vế phải là hằng số \texttt{int} hoặc một \texttt{Count}
+    khác. Toán tử thuộc enum \texttt{Comparison} gồm sáu giá trị
+    \texttt{EQ, NE, LT, LE, GT, GE}. Dạng ``hàng 1 và hàng 4 có số tội phạm
+    bằng nhau'' và ``số tội phạm ở hàng 4 bằng số người vô tội ở hàng 3'' đều là
+    \texttt{CountConstraint} giữa hai \texttt{Count}.
+  \item \texttt{ConnectedConstraint(targets, is\_criminal, allow\_empty)} có
+    cờ \texttt{allow\_empty} quyết định tập rỗng có được coi là liên thông.
+  \item \texttt{AllOf(constraints)} lồng các ràng buộc con, cho phép một lời
+    khai nói nhiều điều.
+\end{itemize}
+Thiết kế này giữ ràng buộc là dữ liệu thuần. Mỗi nơi cần diễn giải ràng buộc
+viết bộ diễn giải của riêng mình bằng cách phân nhánh theo kiểu
+(\texttt{isinstance}): \texttt{CNFEncoder.encode\_constraint} phía tác nhân và
+\texttt{evaluate\_constraint} trong \texttt{BruteForceChecker}. Thêm một kiểu
+ràng buộc mới cần một lớp dữ liệu cùng một nhánh trong mỗi bộ diễn giải, không
+cần sửa \texttt{GameEngine}. Kiểu lạ không có nhánh tương ứng gây
+\texttt{TypeError} hoặc \texttt{NotImplementedError} thay vì bị bỏ qua.
+
+\paragraph{Các ô được nhắc tới.}
+Hàm \texttt{referenced\_cell\_ids(constraint)} duyệt đệ quy một ràng buộc và trả
+về tập định danh ô mà nó nhắc tới (với \texttt{AllOf} là hợp của các con). Hàm
+này được dùng ở ba nơi: \texttt{validate\_puzzle} kiểm tra lời khai không trỏ tới
+ô không tồn tại; API đưa danh sách đã sắp xếp vào trường
+\texttt{referenced\_cell\_ids} để giao diện tô sáng các ô liên quan;
+\texttt{BruteForceChecker} đếm số ràng buộc nhắc tới mỗi ô để chọn thứ tự duyệt.
+
+\paragraph{Đánh giá ba giá trị trong \texttt{BruteForceChecker}.}
+\texttt{BruteForceChecker} là bộ kiểm tra tham chiếu nằm trong
+\nolinkurl{BackEnd/GameEngine/}. Nó hoạt động trực tiếp trên đối tượng ràng
+buộc, không qua CNF. Hàm \texttt{evaluate\_constraint} nhận một phép gán
+\emph{bộ phận} và trả về \texttt{True}, \texttt{False}, hoặc \texttt{None} khi
+kết quả còn phụ thuộc các ô chưa gán:
+\begin{itemize}
+  \item với \texttt{Count}, hàm tính khoảng giá trị khả dĩ $[\mathit{lo},
+    \mathit{hi}]$: $\mathit{lo}$ là số ô đã gán đúng trạng thái, $\mathit{hi}$
+    cộng thêm số ô chưa gán. \texttt{\_compare\_ranges} quyết định phép so sánh
+    giữa hai khoảng ngay khi kết quả chắc chắn, ví dụ $a < b$ đúng chắc chắn
+    nếu $a_{\mathit{hi}} < b_{\mathit{lo}}$;
+  \item \texttt{ParityConstraint} và \texttt{ConnectedConstraint} chỉ quyết
+    định được khi mọi ô đích đã gán. Liên thông được kiểm tra bằng BFS bốn
+    hướng trên \texttt{coordinates};
+  \item \texttt{AllOf} trả \texttt{False} ngay khi một con sai.
+\end{itemize}
+Hàm \texttt{has\_solution} gán sẵn các ô đã chứng minh cùng giả thiết. Nếu giả
+thiết trái với một ô đã chứng minh, hàm trả \texttt{False} ngay. Sau đó nó tìm
+kiếm quay lui trên các ô còn lại: tại mỗi nút, nếu một ràng buộc đã chắc chắn
+sai thì cắt nhánh. Ô được duyệt theo bậc giảm dần, tức số ràng buộc nhắc tới ô
+đó, để chẵn lẻ và liên thông sớm có đủ dữ liệu mà kết luận. Bộ kiểm tra này
+có chi phí xấu nhất $O(2^{|\mathcal{C}|})$ và chỉ phù hợp với lưới nhỏ. Vai trò
+của nó là đối chứng ngữ nghĩa: \texttt{test\_brute\_force\_checker} kiểm tra
+từng dạng ràng buộc trên nó, và \texttt{validate\_puzzle} dùng nó trong
+\texttt{test\_maps} để kiểm chứng sáu bản đồ.
+\end{sloppypar}

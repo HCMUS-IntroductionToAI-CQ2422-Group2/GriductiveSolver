@@ -1,3 +1,71 @@
 \subsection{Game Object và cấu trúc dữ liệu bàn chơi}
-% Note: Trình bày Cell, Board, Verdict, PuzzleDefinition và các truy vấn hàng, cột, hàng xóm, nghề nghiệp.
+\label{sec:game_objects}
+\begin{sloppypar}
 
+Module \texttt{GameObject/objects.py} khai báo năm lớp mô tả một đề bài. Tất cả
+đều là \texttt{dataclass(frozen=True)}: không đối tượng nào sửa được sau khi
+tạo, và các tập hợp bên trong được lưu bằng \texttt{tuple} thay vì
+\texttt{list}. Nhờ đó một \texttt{PuzzleDefinition} được dùng chung an toàn
+giữa nhiều ván, giữa engine và bộ kiểm tra, mà không cần sao chép. Toàn bộ
+trạng thái thay đổi được của ván tách riêng sang \texttt{GameState}
+(Mục~\ref{sec:game_state}).
+
+\begin{table}[htbp]
+  \centering\small
+  \caption{Các lớp dữ liệu trong \texttt{objects.py}}
+  \label{tab:game_objects}
+  \begin{tabularx}{\textwidth}{l>{\raggedright\arraybackslash}X}
+    \toprule
+    \textbf{Lớp} & \textbf{Trường và ý nghĩa} \\
+    \midrule
+    \texttt{Cell} & \texttt{id: int}; \texttt{coordinates: (int, int)} là
+      (hàng, cột) đánh số từ $0$; \texttt{character\_name}; \texttt{profession} \\
+    \texttt{Board} & \texttt{cells}: bộ hai chiều các \texttt{Cell}, theo hàng.
+      Thuộc tính tính toán \texttt{height}, \texttt{width}, \texttt{cell\_count} \\
+    \texttt{Verdict} & \texttt{cell\_id}; \texttt{is\_criminal: bool}
+      (\texttt{True} là tội phạm) \\
+    \texttt{Clue} & \texttt{id}; \texttt{source\_cell\_id: int | None}
+      (\texttt{None} là lời khai công khai từ đầu); \texttt{constraint};
+      \texttt{description\_nl} là câu tiếng Việt hiển thị cho người chơi \\
+    \texttt{PuzzleDefinition} & \texttt{id} (ví dụ \texttt{medium-4x4-harbor});
+      \texttt{board}; \texttt{clues}; \texttt{solution} là đáp án đầy đủ;
+      \texttt{initial\_verdicts} là các phán quyết có sẵn khi bắt đầu \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\paragraph{Định danh và tọa độ.}
+Mỗi ô có hai cách định vị: định danh phẳng \texttt{id} (khóa dùng chung giữa
+engine, bộ kiểm tra và API) và \texttt{coordinates} (dùng khi cần quan hệ hình
+học). \texttt{Board} chỉ lưu lưới ô và suy ra kích thước từ đó:
+\texttt{height} là số hàng, \texttt{width} là độ dài hàng đầu, và
+\texttt{cell\_count} $= \texttt{width}\times\texttt{height}$. Lớp này không tự
+kiểm tra lưới có hình chữ nhật hay tọa độ khai báo có khớp vị trí. Hai điều kiện
+đó được \texttt{validate\_puzzle} kiểm tra trong hàm \texttt{\_check\_grid}. Kiểm
+tra này cần thiết vì \texttt{BruteForceChecker} và \texttt{CNFEncoder} tìm láng
+giềng cạnh của \texttt{ConnectedConstraint} dựa trên \texttt{coordinates}, chứ
+không dựa trên vị trí trong mảng.
+
+\paragraph{Dựng bàn chơi cho các bản đồ.}
+Sáu bản đồ dùng chung hàm \texttt{make\_board(size)} trong
+\texttt{Maps/common.py}. Hàm lấy $\texttt{size}^2$ nhân vật đầu tiên từ danh
+sách cố định $25$ cặp (tên, nghề), gán \texttt{id} tăng dần từ $0$ và tọa độ
+\texttt{divmod(id, size)}, rồi cắt thành từng hàng. Vì vậy định danh luôn theo
+thứ tự hàng và $\texttt{id} = r \cdot W + c$, đúng với công thức
+\eqref{eq:cell_id}. Mỗi module bản đồ khai báo thêm tập \texttt{CRIMINALS},
+các \texttt{Clue}, và dựng \texttt{solution} bằng
+\texttt{Verdict(i, i in CRIMINALS)} cho mọi ô.
+
+\paragraph{Truy vấn trên bàn chơi.}
+Module \texttt{board\_utils.py} cung cấp bốn hàm trả về bộ định danh ô:
+\texttt{row\_ids(board, r)}, \texttt{column\_ids(board, c)},
+\texttt{profession\_ids(board, p)}, và \texttt{neighbor\_ids(board, i)} trả về
+tối đa tám ô lân cận kể cả đường chéo, không gồm chính ô $i$. Hàm cuối duyệt
+lưới tìm ô $i$, rồi cắt lát các hàng và cột trong khoảng
+$[\max(0, r-1),\, r+2)$ và $[\max(0, c-1),\, c+2)$, nên tự xử lý ô ở biên và
+góc. Ô không tồn tại gây \texttt{ValueError}. Các hàm này mô tả đúng những tập
+đích mà lời khai trong bản đồ dùng tới (hàng, cột, lân cận). Tuy nhiên, ở phiên
+bản hiện tại các module bản đồ ghi tường minh tập định danh trong từng ràng buộc,
+ví dụ \texttt{Count((3, 4, 5))} cho hàng 2 của lưới $3\times3$, và không module
+nào gọi tới \texttt{board\_utils}.
+\end{sloppypar}

@@ -1,3 +1,95 @@
 \subsection{Luồng xử lý verdict, reveal và restart}
-% Note: Mô tả các bước submit verdict, kết quả chấp nhận/từ chối, mở clue, hoàn tất ván và khởi tạo lại.
+\label{sec:engine_flow}
+\begin{sloppypar}
 
+\texttt{GameEngine} có ba thao tác công khai: \texttt{get\_public\_state},
+\texttt{submit\_verdict} và \texttt{restart}. Mục này mô tả luồng thực thi của
+chúng. Điều kiện logic của từng kết quả đã được hình thức hóa ở
+Mục~\ref{sec:verdict_acceptance} (Bảng~\ref{tab:submit_outcome}).
+
+\paragraph{Khởi tạo.}
+Hàm khởi tạo nhận một \texttt{PuzzleDefinition} và một bộ kiểm tra. Nó tính
+trước tập định danh ô hợp lệ dưới dạng \texttt{frozenset} để kiểm tra ô tồn tại
+trong $O(1)$, rồi gọi \texttt{\_initial\_state()}. Hàm này tạo một
+\texttt{GameState} rỗng và áp từng phán quyết trong
+\texttt{initial\_verdicts} bằng chính hàm \texttt{\_apply\_proof} dùng cho
+phán quyết thường. Nhờ vậy nhân vật khởi đầu vừa được đánh dấu đã chứng minh,
+vừa có lời khai được lật sẵn, mà không cần mã xử lý riêng cho trạng thái đầu.
+Engine \emph{không} gọi bộ kiểm tra cho phán quyết ban đầu: tính đúng của chúng
+được \texttt{validate\_puzzle} kiểm tra từ trước, khi đối chiếu với đáp án.
+
+\paragraph{Nộp phán quyết.}
+Thuật toán~\ref{alg:submit_verdict} là luồng của
+\texttt{submit\_verdict(cell\_id, status)}. Hai kiểm tra rẻ chạy trước, không
+cần bộ giải. Sau đó engine gọi \texttt{has\_solution} đúng hai lần trên
+\emph{cùng một} ảnh chụp công khai, một lần với giả thiết của người chơi và một
+lần với giả thiết ngược lại. Mọi kết quả đều trả về đối tượng
+\texttt{SubmitResult(verdict, outcome, public\_state)}. Engine không ném ngoại
+lệ cho nước đi sai; việc ánh xạ kết quả sang mã HTTP do API đảm nhiệm. Hiện chỉ
+\texttt{INVALID\_CELL} được đổi thành HTTP~404, năm kết quả còn lại trả HTTP~200
+kèm trường \texttt{outcome}.
+
+\begin{algorithm}[htbp]
+  \caption{\texttt{GameEngine.submit\_verdict}}
+  \label{alg:submit_verdict}
+  \begin{algorithmic}[1]
+    \Require ô $i$, trạng thái $s$
+    \Ensure \texttt{SubmitResult}
+    \State $P \gets \Call{GetPublicState}{}$ \Comment{ảnh chụp trước nước đi}
+    \If{$i \notin$ tập ô hợp lệ} \Return $(\langle i,s\rangle, \texttt{INVALID\_CELL}, P)$ \EndIf
+    \If{$i \in \texttt{proved\_statuses}$} \Return $(\langle i,s\rangle, \texttt{ALREADY\_PROVED}, P)$ \EndIf
+    \State $a \gets \textsc{HasSolution}(P, \langle i, s\rangle)$
+    \State $b \gets \textsc{HasSolution}(P, \langle i, \neg s\rangle)$
+    \If{$a \land b$} \Return $(\cdot, \texttt{NOT\_PROVABLE}, P)$ \EndIf
+    \If{$\neg a \land b$} \Return $(\cdot, \texttt{CONTRADICTED}, P)$ \EndIf
+    \If{$\neg a \land \neg b$} \Return $(\cdot, \texttt{INCONSISTENT}, P)$ \EndIf
+    \State $\Call{ApplyProof}{\mathit{state}, i, s}$ \Comment{chỉ nhánh $a \land \neg b$ tới đây}
+    \State \Return $(\langle i,s\rangle, \texttt{ACCEPTED}, \Call{GetPublicState}{})$
+  \end{algorithmic}
+\end{algorithm}
+
+Ba đặc điểm của luồng này đáng chú ý:
+\begin{itemize}
+  \item \textbf{Chỉ \texttt{ACCEPTED} ghi trạng thái.} Năm kết quả còn lại trả
+    về chính ảnh chụp $P$ dựng ở dòng~1. Một nước đi sai không để lại dấu vết
+    trong \texttt{GameState}; các ca \texttt{test\_submit\_*} khẳng định
+    \texttt{engine.get\_public\_state()} bằng ảnh chụp trước nước đi.
+  \item \textbf{Đáp án không tham gia quyết định.} \texttt{submit\_verdict}
+    không đọc \texttt{PuzzleDefinition.solution}. Phán quyết đúng với đáp án
+    nhưng chưa suy ra được vẫn nhận \texttt{NOT\_PROVABLE}.
+  \item \textbf{Không có bộ nhớ đệm.} Mỗi lần nộp tốn đúng hai lời gọi
+    \texttt{has\_solution}, và bộ kiểm tra dựng lại toàn bộ ràng buộc từ ảnh
+    chụp. Cách làm này đơn giản và luôn nhất quán với trạng thái hiện tại; chi
+    phí của nó được đo ở Mục~7.
+\end{itemize}
+
+\paragraph{Lật lời khai.}
+Khi phán quyết được chấp nhận, \texttt{\_apply\_proof(state, i, s)} thực hiện
+quy tắc \eqref{eq:reveal} theo hai bước: ghi
+\texttt{state.proved\_statuses[i] = s}, rồi thêm vào
+\texttt{state.revealed\_clue\_ids} định danh của mọi lời khai có
+\texttt{source\_cell\_id == i}. Bước lật không phụ thuộc $s$: lời khai của tội
+phạm cũng được lật. Ảnh chụp trả về sau \texttt{ACCEPTED} đã chứa lời khai mới,
+nên lời gọi kế tiếp, của người chơi hay của tác nhân, dùng được ngay thông tin
+này. Ca \texttt{test\_revealed\_clue\_makes\_new\_cell\_provable} kiểm tra đúng
+chuỗi này: một ô ban đầu \texttt{NOT\_PROVABLE} trở thành \texttt{ACCEPTED} sau
+khi lời khai mới được lật.
+
+\paragraph{Hoàn tất ván.}
+Engine không có trạng thái ``kết thúc'' riêng. Ván hoàn tất khi
+\texttt{PublicState.is\_complete} đúng, tức mọi ô đều có trong
+\texttt{proved\_statuses}. Từ đó mọi lần nộp tiếp theo đều nhận
+\texttt{ALREADY\_PROVED}, nên trạng thái không thể thay đổi thêm. API trả trường
+\texttt{is\_complete} trong mỗi phản hồi. Giao diện dựa vào trường này để hiện
+màn hình kết thúc, còn \texttt{DeductiveAgent.next\_move} trả \texttt{SOLVED}
+khi không còn ô chưa chứng minh.
+
+\paragraph{Khởi động lại.}
+\texttt{restart()} thay \texttt{self.\_state} bằng kết quả mới của
+\texttt{\_initial\_state()} và trả ảnh chụp tương ứng. Vì trạng thái được dựng
+lại từ \texttt{PuzzleDefinition} bất biến, ván trở về đúng
+$(\mathcal{R}_0, \mathcal{P}_0)$ dù trước đó đã đi bao nhiêu nước. Các ảnh
+chụp cũ đã phát ra không bị ảnh hưởng, vì chúng giữ bản sao riêng. Phía API,
+nạp bản đồ khác (\nolinkurl{/api/game/load}) không gọi \texttt{restart} mà tạo
+hẳn một \texttt{GameEngine} mới rồi thay vào \texttt{app.state.engine}.
+\end{sloppypar}

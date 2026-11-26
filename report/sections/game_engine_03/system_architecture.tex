@@ -1,3 +1,118 @@
 \subsection{Kiến trúc tổng thể}
-% Note: Vẽ sơ đồ UI, API, Engine, Agent và SAT Solver; mô tả trách nhiệm và dữ liệu trao đổi.
+\label{sec:system_architecture}
+\begin{sloppypar}
 
+Hệ thống được tổ chức thành bốn lớp, trong đó mỗi lớp chỉ phụ thuộc vào lớp ngay bên dưới (Hình 3). Giao diện web đảm nhiệm phần hiển thị và tương tác với người dùng, còn API thực hiện việc chuyển đổi dữ liệu. Luật chơi và trạng thái ván đấu được quản lý tại Game Engine. Riêng việc kiểm tra xem các thông tin công khai có còn khả năng được thỏa mãn hay không được xử lý bởi một bộ kiểm tra ràng buộc độc lập, có thể thay thế khi cần.
+
+\begin{figure}[htbp]
+  \centering
+  \begin{tikzpicture}[
+      font=\small,
+      box/.style={draw=FITBlue, rounded corners=3pt, fill=LightBlueBg,
+                  align=center, minimum height=11mm, inner sep=3pt},
+      arr/.style={->, >=stealth, thick, draw=DarkNavy},
+      lbl/.style={font=\footnotesize, fill=white, inner sep=1.5pt}]
+    \node[box, minimum width=144mm] (ui) at (0, 0)
+      {\textbf{FrontEnd} (HTML/CSS/JS thuần):
+       \texttt{api.js}, \texttt{store.js}, \texttt{ui/*.js}};
+    \node[box, minimum width=28mm, fill=white] (maps) at (-5.6, -2.0)
+      {\textbf{Maps}\\ \texttt{PUZZLES}};
+    \node[box, minimum width=108mm] (api) at (1.8, -2.0)
+      {\textbf{API} (FastAPI): \texttt{main.py}, \texttt{schemas.py}\\
+       khóa \texttt{game\_lock}; \texttt{to\_public\_json}};
+    \node[box, minimum width=64mm] (engine) at (-4.0, -4.2)
+      {\textbf{GameEngine}\\ \texttt{GameState}, \texttt{PublicState}};
+    \node[box, minimum width=64mm] (agent) at (4.0, -4.2)
+      {\textbf{DeductiveAgent}\\ \texttt{next\_move}, \texttt{solve}};
+    \node[box, minimum width=144mm, draw=HCMUSBlue, fill=white] (checker) at (0, -6.4)
+      {\textbf{\texttt{ConstraintChecker}} (Protocol):
+       \texttt{has\_solution(public\_state, assumption)}};
+    \node[box, minimum width=64mm] (dpll) at (-4.0, -8.6)
+      {\texttt{DPLLChecker}\\ \texttt{CNFEncoder} + DPLL};
+    \node[box, minimum width=64mm] (brute) at (4.0, -8.6)
+      {\texttt{BruteForceChecker}\\ quay lui trên ràng buộc};
+
+    \draw[arr, <->] (1.8, -0.55) -- node[lbl] {HTTP/JSON, \nolinkurl{/api/...}} (1.8, -1.45);
+    \draw[arr] (maps.south) -- node[lbl] {\texttt{PuzzleDefinition}} (-5.6, -3.65);
+    \draw[arr] (-2.0, -2.55) -- (-2.0, -3.65);
+    \draw[arr] (4.0, -2.55) -- (4.0, -3.65);
+    \draw[arr] (agent.west) -- node[lbl, above=2pt] {nộp} (engine.east);
+    \draw[arr] (-4.0, -4.75) -- (-4.0, -5.85);
+    \draw[arr] (4.0, -4.75) -- (4.0, -5.85);
+    \draw[arr, dashed] (dpll.north) -- node[lbl] {cài đặt} (-4.0, -6.95);
+    \draw[arr, dashed] (brute.north) -- node[lbl] {cài đặt} (4.0, -6.95);
+  \end{tikzpicture}
+  \caption{Kiến trúc hệ thống. Mũi tên liền: lời gọi; mũi tên nét đứt: lớp
+    cài đặt giao diện \texttt{ConstraintChecker}; mũi tên ``nộp'' là lời gọi
+    \texttt{submit\_verdict} của tác nhân. Đáp án của bản đồ chỉ nằm
+    trong khối Maps và \texttt{GameEngine}, không đi lên API.}
+  \label{fig:architecture}
+\end{figure}
+
+\paragraph{Trách nhiệm từng lớp.}
+Bảng~\ref{tab:module_roles} liệt kê các module chính cùng dữ liệu vào và ra
+của chúng.
+\begin{itemize}
+  \item \textbf{FrontEnd} hiển thị trạng thái công khai và gửi thao tác của
+    người chơi. Nó không biết đáp án và không tự quyết định phán quyết nào đúng.
+  \item \textbf{API} (\nolinkurl{BackEnd/APIs/}) giữ một đối tượng
+    \texttt{GameEngine} cho ván đang chơi trong \texttt{app.state.engine}. Mọi
+    endpoint đọc hoặc ghi ván đều chạy trong khóa \texttt{game\_lock}
+    (\texttt{threading.Lock}), nên hai yêu cầu đồng thời không xen kẽ nhau.
+    Hàm \texttt{to\_public\_json} chuyển \texttt{PublicState} thành JSON.
+  \item \textbf{GameEngine} (\nolinkurl{BackEnd/GameEngine/}) giữ đề bài,
+    trạng thái ván và luật chấp nhận phán quyết. Đây là nơi duy nhất được phép
+    thay đổi trạng thái ván.
+  \item \textbf{Bộ kiểm tra ràng buộc} trả lời một câu hỏi duy nhất: thông tin
+    công khai, cộng với một giả thiết tùy chọn, có thỏa được không.
+\end{itemize}
+
+\paragraph{Tách luật chơi khỏi bộ giải.}
+\texttt{ConstraintChecker} được khai báo bằng \texttt{typing.Protocol} với một
+phương thức \texttt{has\_solution}. Game Engine và \texttt{DeductiveAgent} chỉ
+gọi qua giao diện này. Vì vậy cùng một engine chạy được với hai bộ kiểm tra:
+\texttt{DPLLChecker} (mã hóa CNF rồi giải bằng DPLL, Mục~4) và
+\texttt{BruteForceChecker} (tìm kiếm quay lui trực tiếp trên các đối tượng ràng
+buộc, Mục~\ref{sec:clue_representation}). Backend chọn bộ kiểm tra ở đúng một
+dòng trong \texttt{main.py}, \texttt{checker: ConstraintChecker =
+DPLLChecker()}. Các ca kiểm thử engine dùng \texttt{BruteForceChecker}; ca
+\texttt{INCONSISTENT} của \texttt{test\_game\_engine} và toàn bộ
+\texttt{test\_deductive\_agent} được tham số hóa để chạy trên cả hai bộ kiểm
+tra. Hai cài đặt độc lập cho cùng kết quả là một cách đối chiếu chéo tính đúng
+đắn của bộ mã hóa CNF.
+
+\paragraph{Ba nơi dùng chung Game Engine.}
+Luật chấp nhận phán quyết chỉ được cài đặt một lần, trong
+\texttt{GameEngine.submit\_verdict}, và được ba thành phần dùng lại:
+\begin{enumerate}
+  \item API endpoint \nolinkurl{/api/game/verdicts}, khi người chơi nộp phán quyết;
+  \item \texttt{DeductiveAgent.solve}, nộp từng nước đi đã chứng minh vào
+    engine. Nếu engine từ chối, tác nhân ném \texttt{MoveRejected} và API trả
+    HTTP~409;
+  \item \texttt{validate\_puzzle}, cho một ``người chơi hoàn hảo'' biết đáp án
+    nộp phán quyết qua engine thật để kiểm tra bản đồ không cần đoán.
+\end{enumerate}
+Nhờ vậy tác nhân, bộ kiểm chứng bản đồ và người chơi luôn chịu cùng một luật.
+Tác nhân không thể ``giải được'' một ván mà người chơi thật không giải được.
+
+\begin{table}[htbp]
+  \centering\small
+  \caption{Các module của Game Engine và dữ liệu trao đổi}
+  \label{tab:module_roles}
+  \begin{tabularx}{\textwidth}{l>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X}
+    \toprule
+    \textbf{Module} & \textbf{Vai trò} & \textbf{Vào / ra chính} \\
+    \midrule
+    \texttt{GameObject/objects.py}     & Dữ liệu bất biến của đề: ô, bàn, phán quyết, lời khai, đề bài & --- \\
+    \texttt{GameObject/constraints.py} & Bảy kiểu ràng buộc và hàm \texttt{referenced\_cell\_ids} & --- \\
+    \texttt{GameObject/board\_utils.py}& Lấy định danh ô theo hàng, cột, lân cận, nghề & \texttt{Board} $\to$ bộ định danh ô \\
+    \texttt{GameState.py}              & Trạng thái nội bộ và ảnh chụp công khai & --- \\
+    \texttt{ConstraintChecker.py}      & Giao diện bộ kiểm tra & \texttt{PublicState}, \texttt{Verdict?} $\to$ \texttt{bool} \\
+    \texttt{GameEngine.py}             & Nhận phán quyết, lật lời khai, khởi động lại & \texttt{(cell\_id, status)} $\to$ \texttt{SubmitResult} \\
+    \texttt{BruteForceChecker.py}      & Bộ kiểm tra quay lui dùng làm đối chứng & như \texttt{ConstraintChecker} \\
+    \texttt{validation.py}             & Kiểm chứng cấu trúc, nghiệm duy nhất, không cần đoán & \texttt{PuzzleDefinition} $\to$ \texttt{None} hoặc ngoại lệ \\
+    \texttt{Maps/}                     & Sáu bản đồ và danh mục \texttt{PUZZLES} & --- \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+\end{sloppypar}
