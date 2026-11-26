@@ -1,3 +1,66 @@
 \subsection{Kiểm soát thông tin công khai và thông tin ẩn}
-% Note: Trình bày cách ngăn đáp án và clue chưa mở xuất hiện trong Public State, phản hồi API hoặc đầu vào của Agent.
+\label{sec:information_visibility}
+\begin{sloppypar}
 
+Luật không đoán chỉ có ý nghĩa khi người chơi và tác nhân không thể đọc được đáp
+án hay những lời khai chưa được lật. Trong hệ thống có hai loại thông tin ẩn,
+gồm đáp án \texttt{PuzzleDefinition.solution} và các lời khai mà ô sở hữu chưa
+được chứng minh. Cả hai loại thông tin này được ngăn chặn ở ba lớp khác nhau.
+
+\paragraph{Lớp thứ nhất: Game Engine}
+\texttt{PuzzleDefinition} chỉ được lưu trong thuộc tính riêng \texttt{\_puzzle}
+của engine, và hàm duy nhất trao dữ liệu ra bên ngoài là
+\texttt{get\_public\_state}. Hàm này chỉ chọn lọc một phần đề bài, trong đó
+\texttt{PublicState} không có trường đáp án còn \texttt{revealed\_clues} chỉ chứa
+các lời khai công khai hoặc đã được lật (Mục~\ref{sec:game_state}). Bộ kiểm tra
+cũng không bao giờ nhận được \texttt{PuzzleDefinition}, bởi chữ ký
+\texttt{has\_solution(public\_state, assumption)} chỉ truyền vào
+\texttt{PublicState}. Do \texttt{DPLLChecker} chỉ mã hóa
+\texttt{revealed\_clues} và \texttt{proved\_statuses} của ảnh chụp, lời khai ẩn
+không có cách nào đi vào $\mathit{KB}_t$. Trường hợp ngoại lệ duy nhất là
+\texttt{validate\_puzzle}: khi kiểm tra tính duy nhất của nghiệm, hàm này tự dựng
+một \texttt{PublicState} chứa \emph{tất cả} lời khai. Tuy nhiên đây là bước kiểm
+chứng dành cho người thiết kế bản đồ, được thực hiện bên ngoài ván chơi và không
+đi qua engine.
+
+\paragraph{Lớp thứ hai: API}
+Mọi phản hồi có chứa trạng thái ván đều đi qua hàm \texttt{to\_public\_json},
+vốn chỉ đọc dữ liệu từ \texttt{PublicState}, và dữ liệu còn được rút gọn thêm
+trong quá trình chuyển sang JSON. Cụ thể, trường \texttt{is\_criminal} của mỗi ô
+được lấy từ \texttt{proved\_statuses} và nhận giá trị \texttt{null} nếu ô chưa
+được chứng minh; mỗi lời khai chỉ gồm \texttt{id}, \texttt{source\_cell\_id},
+\texttt{description\_nl} và \texttt{referenced\_cell\_ids}, còn đối tượng ràng
+buộc hình thức không được gửi đi. Ngoài ra, \texttt{response\_model} của FastAPI
+(\texttt{PublicStateResponse}) lọc lại phản hồi theo lược đồ đã khai báo, nên
+ngay cả khi có một trường thừa vô tình được thêm vào thì trường đó cũng không bị
+lộ ra ngoài. Danh sách \texttt{sat\_queries} mà các endpoint gợi ý và tự giải
+trả về là kết quả của các lời gọi \texttt{has\_solution} trên chính ảnh chụp
+công khai, do đó cũng chỉ phản ánh thông tin công khai.
+
+\paragraph{Lớp thứ ba: tác nhân và giao diện}
+Các phương thức \texttt{next\_move} và \texttt{classify\_all} của
+\texttt{DeductiveAgent} chỉ nhận tham số \texttt{PublicState}, còn \texttt{solve}
+chỉ lấy dữ liệu thông qua \texttt{engine.get\_public\_state()} và
+\texttt{submit\_verdict}. Giao diện thì chỉ nhận JSON từ API. Khi ở chế độ ngoại
+tuyến, tức không kết nối được với backend, lớp \texttt{MockGameApi} từ chối mọi
+thao tác nộp phán quyết, gợi ý và tự giải thay vì tự quyết định đúng sai, vì
+phía giao diện vốn không có đáp án.
+
+\paragraph{Kiểm chứng}
+Ca kiểm thử \texttt{test\_initial\_state\_does\_not\_\allowbreak expose\_hidden\_\allowbreak clues\_or\_answers}
+trong module \texttt{test\_maps} được chạy trên cả sáu bản đồ, nhằm xác nhận rằng
+JSON công khai ở đầu ván chỉ có đúng một ô đã xác định là nhân vật khởi đầu vô
+tội, chỉ chứa đúng lời khai của nhân vật đó và không có khóa \texttt{solution}.
+Bên cạnh đó, ca \texttt{test\_clues\_unlock\_at\_the\_right\_moment} kiểm tra
+rằng mỗi lời khai chỉ xuất hiện sau khi ô sở hữu nó được chấp nhận.
+
+\paragraph{Giới hạn}
+Do Python không có cơ chế thuộc tính riêng tư thực sự, mã chạy trong cùng tiến
+trình vẫn có thể đọc \texttt{engine.\_puzzle}. Vì vậy ranh giới ở lớp thứ nhất
+chỉ là ranh giới theo quy ước giao diện và được bảo đảm bằng kiểm thử, trong khi
+ranh giới cứng nằm ở lớp thứ hai, nơi giao diện chạy trong trình duyệt chỉ nhận
+được những gì \texttt{to\_public\_json} gửi đi. Ngoài ra, trường
+\texttt{referenced\_cell\_ids} cho biết lời khai nhắc tới những ô nào, nhưng
+thông tin này vốn đã có trong câu tiếng Việt của lời khai nên không làm lộ thêm
+điều gì.
+\end{sloppypar}

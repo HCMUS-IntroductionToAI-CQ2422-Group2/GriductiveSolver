@@ -1,3 +1,51 @@
 \subsection{Game State và Public State}
-% Note: Giải thích trạng thái nội bộ, verdict đã xác nhận, clue đã mở và dữ liệu được phép công khai.
+\label{sec:game_state}
+\begin{sloppypar}
 
+Trạng thái của một ván chơi được tách thành hai lớp trong \texttt{GameState.py},
+trong đó lớp thứ nhất thuộc quyền sở hữu của engine và có thể thay đổi, còn lớp
+thứ hai là ảnh chụp chỉ đọc được trao cho các thành phần bên ngoài. Ý nghĩa của
+hai lớp này đối với cơ sở tri thức đã được nêu ở Mục~\ref{sec:knowledge_base};
+mục này đi vào chi tiết cài đặt.
+
+\paragraph{Trạng thái nội bộ \texttt{GameState}}
+\texttt{GameState} là một \texttt{dataclass} thông thường gồm đúng hai trường.
+Trường \texttt{proved\_statuses} kiểu \texttt{dict[int, bool]} ánh xạ định danh
+ô sang trạng thái đã được chứng minh, và một ô chưa có khóa trong từ điển được
+hiểu là chưa xác định. Trường \texttt{revealed\_clue\_ids} kiểu \texttt{set[int]}
+lưu định danh các lời khai đã được lật trong quá trình chơi; các lời khai công
+khai (có \texttt{source\_cell\_id} là \texttt{None}) luôn được hiển thị nên không
+cần lưu tại đây. Cả hai trường đều được khởi tạo bằng
+\texttt{field(default\_factory=...)} để mỗi \texttt{GameState} có từ điển và tập
+hợp riêng, và ca kiểm thử \texttt{test\_game\_state\_defaults\_are\_independent}
+xác nhận rằng hai ván không vô tình dùng chung một đối tượng mặc định. Lớp này
+cũng không lưu đề bài, đáp án, số lỗi hay lịch sử nước đi, bởi số lỗi và thời
+gian thuộc về giao diện, còn đề bài đã được giữ trong \texttt{GameEngine}.
+
+\paragraph{Ảnh chụp công khai \texttt{PublicState}}
+\texttt{PublicState} được định nghĩa bằng \texttt{dataclass(frozen=True)} với
+bốn trường: \texttt{puzzle\_id}, \texttt{board}, \texttt{revealed\_clues} (bộ
+các đối tượng \texttt{Clue} đầy đủ, bao gồm cả ràng buộc hình thức) và
+\texttt{proved\_statuses}. Thuộc tính \texttt{is\_complete} trả về \texttt{True}
+khi số ô đã được chứng minh bằng \texttt{board.cell\_count}. Đây là đầu vào duy
+nhất của \texttt{ConstraintChecker.has\_solution} cũng như của mọi phương thức
+trong \texttt{DeductiveAgent}, nói cách khác, bộ giải chỉ có thể nhìn thấy những
+gì nằm trong \texttt{PublicState}.
+
+\paragraph{Cách tạo ảnh chụp}
+Mỗi lần được gọi, \texttt{GameEngine.get\_public\_state()} dựng một
+\texttt{PublicState} mới. Trường \texttt{revealed\_clues} được lọc từ đề bài,
+chỉ giữ lại các lời khai có \texttt{source\_cell\_id} là \texttt{None} hoặc có
+\texttt{id} thuộc \texttt{revealed\_clue\_ids}, theo đúng thứ tự khai báo trong
+đề. Trường \texttt{proved\_statuses} được tạo bằng cách bọc
+\texttt{MappingProxyType(dict(...))} quanh từ điển nội bộ
+\texttt{self.\_state.proved\_statuses}. Bước \texttt{dict(...)} tạo một bản sao,
+nhờ đó các nước đi sau này không làm thay đổi ảnh chụp đã được phát ra; còn
+bước \texttt{MappingProxyType} biến bản sao đó thành chế độ chỉ đọc, khiến bên
+nhận không thể ghi ngược vào. Cả hai tính chất này được kiểm chứng trong ca
+\texttt{test\_public\_state\_is\_read\_only\_and\_detached}, trong đó việc gán
+vào \texttt{proved\_statuses} của ảnh chụp gây ra \texttt{TypeError} và ảnh chụp
+cũ vẫn giữ nguyên sau khi engine chấp nhận thêm phán quyết. Hai trường còn lại
+là \texttt{board} và các \texttt{Clue} vốn đã bất biến, nên được chia sẻ trực
+tiếp mà không cần sao chép.
+\end{sloppypar}

@@ -1,2 +1,70 @@
 \subsection{Kết nối API và backend}
-% Note: Viết một đoạn ngắn về luồng UI gửi yêu cầu qua API đến Engine/Agent và nhận trạng thái công khai để cập nhật giao diện; dẫn đặc tả API chi tiết ở phụ lục nếu cần.
+\label{sec:ui_api_flow}
+\begin{sloppypar}
+
+\paragraph{Luồng xử lý một thao tác}
+Mọi thao tác trên giao diện đều đi qua cùng một luồng gồm bốn bước:
+\begin{enumerate}
+  \item Module điều khiển \texttt{main.js} gọi phương thức tương ứng của lớp
+    \texttt{GameApi} trong \texttt{api.js}, chẳng hạn
+    \texttt{submitVerdict(cellId, isCriminal)}, và lớp này gửi yêu cầu
+    \texttt{fetch} tới endpoint cùng nguồn (\nolinkurl{/api/...}). Khi cần, có
+    thể trỏ sang một backend khác bằng tham số \texttt{?api=}, trong đó CORS
+    chỉ được mở cho \texttt{localhost} và \texttt{127.0.0.1}.
+  \item FastAPI nhận yêu cầu, dùng Pydantic để kiểm tra kiểu dữ liệu
+    (\texttt{StrictInt}, \texttt{StrictBool}), rồi gọi \texttt{GameEngine} hoặc
+    \texttt{DeductiveAgent} bên trong khóa \texttt{game\_lock}.
+  \item Kết quả được chuyển thành JSON bằng \texttt{to\_public\_json}
+    (Mục~\ref{sec:information_visibility}) và trả về cho giao diện.
+  \item Giao diện gọi \texttt{setGame} trong \texttt{store.js}; hàm này so sánh
+    trạng thái mới với trạng thái cũ để xác định các ô vừa được chứng minh và
+    các lời khai vừa được lật, rồi phát sự kiện \texttt{"game"}. Các module
+    trong \texttt{ui/} như bàn chơi, hồ sơ, thanh tiến độ và màn hình kết thúc
+    lắng nghe sự kiện này và tự vẽ lại.
+\end{enumerate}
+Như vậy, giao diện không tự quyết định phán quyết nào là đúng mà chỉ hiển thị
+\texttt{outcome} cùng trạng thái do backend trả về. Tại mỗi thời điểm chỉ có một
+yêu cầu được gửi đi (thông qua cờ \texttt{busy} trong hàm \texttt{run}), nhờ đó
+người chơi không thể bấm chồng hai phán quyết lên nhau. Danh sách đầy đủ bảy
+endpoint, các mã lỗi và ví dụ JSON được trình bày ở
+Phụ lục~\ref{sec:api_pseudocode} (Bảng~\ref{tab:api_endpoints}).
+
+\paragraph{Tự giải và trả lại quyền chơi}
+Endpoint \nolinkurl{/api/game/auto-solve} giải trọn ván trên server trong một
+yêu cầu duy nhất và trả về \texttt{\{status, state, trace\}}. Hiệu ứng ``AI đang
+suy luận'' mà người chơi thấy được thực hiện hoàn toàn ở phía trình duyệt, trong
+đó \texttt{playback.js} dựng trước dãy trạng thái sau từng bước từ
+\texttt{trace} (gồm ô được kết luận và \texttt{revealed\_clue\_ids}) rồi phát lại
+theo nhịp. Vì server đã giải xong toàn bộ ván, nút \emph{Tự chơi tiếp} cần đưa
+server trở về đúng bước đang được xem. Để làm điều đó, giao diện gọi
+\nolinkurl{/api/game/restart}, nộp lại lần lượt các phán quyết mà người chơi đã
+đưa ra trước đó, rồi đến các phán quyết của AI cho tới bước hiện tại; mỗi phán
+quyết này vẫn được engine kiểm tra như bình thường.
+
+\paragraph{Hợp đồng dữ liệu}
+Hai phía thống nhất với nhau thông qua ba nguồn được giữ đồng bộ, gồm
+\texttt{FrontEnd/API\_CONTRACT.md} mô tả hợp đồng bằng lời,
+\texttt{FrontEnd/contract/openapi.json} là lược đồ được sinh từ backend, và
+\texttt{schemas.py} là phần cài đặt; mọi trường dữ liệu đều giữ nguyên tên dạng
+\texttt{snake\_case} như backend trả về. Module \texttt{test\_api\_contract} gồm
+$21$ ca kiểm thử, xác nhận rằng tệp OpenAPI trùng khớp với lược đồ hiện tại, tập
+endpoint đúng bằng tập đã được tài liệu hóa, hình dạng của từng phản hồi, các mã
+lỗi 404, 409 và 422, cấu hình CORS, cũng như việc dữ liệu mẫu ngoại tuyến có cùng
+hình dạng với phản hồi thật.
+
+\paragraph{Chế độ ngoại tuyến}
+Khi không kết nối được với backend, tức xảy ra lỗi mạng và \texttt{ApiError} có
+\texttt{status = 0}, giao diện chuyển sang dùng \texttt{MockGameApi} với ba trạng
+thái mẫu $3\times3$, $4\times4$ và $5\times5$ trong \nolinkurl{mock/state.js}.
+Ở chế độ này người chơi chỉ có thể xem bàn chơi, còn mọi thao tác cần suy luận
+đều bị từ chối kèm theo nút thử kết nối lại. Các lỗi khác từ backend, chẳng hạn
+404 hay 422, được hiển thị trong hộp thoại chứ không khiến giao diện chuyển sang
+chế độ ngoại tuyến.
+
+\paragraph{Giới hạn}
+Backend chỉ giữ \emph{một} ván duy nhất trong \texttt{app.state.engine} cho toàn
+bộ tiến trình, do đó mọi tab trình duyệt kết nối tới cùng một server sẽ dùng
+chung một ván. Thiết kế này đủ đáp ứng mục đích trình diễn và kiểm thử của đồ
+án, còn nếu muốn hỗ trợ nhiều người chơi đồng thời thì cần lưu một engine riêng
+cho mỗi phiên.
+\end{sloppypar}

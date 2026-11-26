@@ -1,3 +1,74 @@
 \subsection{Game Object và cấu trúc dữ liệu bàn chơi}
-% Note: Trình bày Cell, Board, Verdict, PuzzleDefinition và các truy vấn hàng, cột, hàng xóm, nghề nghiệp.
+\label{sec:game_objects}
+\begin{sloppypar}
 
+Module \texttt{GameObject/objects.py} khai báo năm lớp dùng để mô tả một đề bài
+(Bảng~\ref{tab:game_objects}). Tất cả các lớp này đều được định nghĩa bằng
+\texttt{dataclass(frozen=True)}, nghĩa là đối tượng không thể bị sửa đổi sau khi
+tạo, và các tập hợp bên trong được lưu bằng \texttt{tuple} thay vì
+\texttt{list}. Nhờ tính bất biến này, một \texttt{PuzzleDefinition} có thể được
+dùng chung an toàn giữa nhiều ván chơi cũng như giữa engine và bộ kiểm tra mà
+không cần sao chép. Toàn bộ phần trạng thái có thể thay đổi của ván được tách
+riêng sang \texttt{GameState} (Mục~\ref{sec:game_state}).
+
+\begin{table}[htbp]
+  \centering\small
+  \caption{Các lớp dữ liệu trong \texttt{objects.py}}
+  \label{tab:game_objects}
+  \begin{tabularx}{\textwidth}{l>{\raggedright\arraybackslash}X}
+    \toprule
+    \textbf{Lớp} & \textbf{Trường và ý nghĩa} \\
+    \midrule
+    \texttt{Cell} & \texttt{id: int}; \texttt{coordinates: (int, int)} là
+      (hàng, cột) đánh số từ $0$; \texttt{character\_name}; \texttt{profession} \\
+    \texttt{Board} & \texttt{cells}: bộ hai chiều các \texttt{Cell}, theo hàng.
+      Thuộc tính tính toán \texttt{height}, \texttt{width}, \texttt{cell\_count} \\
+    \texttt{Verdict} & \texttt{cell\_id}; \texttt{is\_criminal: bool}
+      (\texttt{True} là tội phạm) \\
+    \texttt{Clue} & \texttt{id}; \texttt{source\_cell\_id: int | None}
+      (\texttt{None} là lời khai công khai từ đầu); \texttt{constraint};
+      \texttt{description\_nl} là câu tiếng Việt hiển thị cho người chơi \\
+    \texttt{PuzzleDefinition} & \texttt{id} (ví dụ \texttt{medium-4x4-harbor});
+      \texttt{board}; \texttt{clues}; \texttt{solution} là đáp án đầy đủ;
+      \texttt{initial\_verdicts} là các phán quyết có sẵn khi bắt đầu \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\paragraph{Định danh và tọa độ}
+Mỗi ô được định vị theo hai cách: định danh phẳng \texttt{id} đóng vai trò khóa
+dùng chung giữa engine, bộ kiểm tra và API, còn \texttt{coordinates} được dùng
+khi cần đến quan hệ hình học giữa các ô. Lớp \texttt{Board} chỉ lưu lưới ô và
+suy ra kích thước từ chính lưới đó, trong đó \texttt{height} là số hàng,
+\texttt{width} là độ dài của hàng đầu tiên và \texttt{cell\_count} bằng tích của
+hai giá trị này. Bản thân lớp \texttt{Board} không kiểm tra lưới có đúng hình chữ
+nhật hay tọa độ khai báo có khớp với vị trí thực của ô hay không; hai điều kiện
+này được hàm \texttt{\_check\_grid} trong \texttt{validate\_puzzle} đảm nhiệm.
+Bước kiểm tra này là cần thiết, bởi \texttt{BruteForceChecker} và
+\texttt{CNFEncoder} xác định láng giềng cạnh cho \texttt{ConnectedConstraint}
+dựa trên \texttt{coordinates} chứ không dựa trên vị trí của ô trong mảng.
+
+\paragraph{Dựng bàn chơi cho các bản đồ}
+Cả sáu bản đồ đều dùng chung hàm \texttt{make\_board(size)} trong
+\texttt{Maps/common.py}. Hàm này lấy $\texttt{size}^2$ nhân vật đầu tiên từ một
+danh sách cố định gồm $25$ cặp (tên, nghề), gán \texttt{id} tăng dần từ $0$ cùng
+tọa độ \texttt{divmod(id, size)}, sau đó cắt danh sách thành từng hàng. Do đó
+định danh luôn tuân theo thứ tự hàng, tức $\texttt{id} = r \cdot W + c$, khớp
+với công thức \eqref{eq:cell_id}. Ngoài bàn chơi, mỗi module bản đồ còn khai báo
+tập \texttt{CRIMINALS} và danh sách \texttt{Clue}, rồi dựng \texttt{solution}
+bằng \texttt{Verdict(i, i in CRIMINALS)} cho mọi ô.
+
+\paragraph{Truy vấn trên bàn chơi}
+Module \texttt{board\_utils.py} cung cấp bốn hàm trả về bộ định danh ô, gồm
+\texttt{row\_ids(board, r)}, \texttt{column\_ids(board, c)},
+\texttt{profession\_ids(board, p)} và \texttt{neighbor\_ids(board, i)}. Hàm cuối
+cùng trả về tối đa tám ô lân cận, tính cả đường chéo nhưng không tính chính ô
+$i$. Để làm điều đó, hàm duyệt lưới tìm ô $i$ rồi cắt lát các hàng và cột trong
+khoảng $[\max(0, r-1),\, r+2)$ và $[\max(0, c-1),\, c+2)$, nhờ vậy các ô nằm ở
+biên hay ở góc đều được xử lý tự nhiên; trường hợp ô không tồn tại sẽ phát sinh
+\texttt{ValueError}. Mặc dù các hàm này mô tả đúng những tập đích mà lời khai
+trong bản đồ sử dụng (hàng, cột, lân cận), ở phiên bản hiện tại các module bản
+đồ vẫn ghi tường minh tập định danh trong từng ràng buộc, chẳng hạn
+\texttt{Count((3, 4, 5))} cho hàng 2 của lưới $3\times3$, và chưa có module nào
+gọi đến \texttt{board\_utils}.
+\end{sloppypar}
