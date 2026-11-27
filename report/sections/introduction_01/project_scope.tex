@@ -1,3 +1,23 @@
 \subsection{Phạm vi và các chức năng đã thực hiện}
-% Note: Nêu phạm vi Game Engine, Game Agent, UI/API, 6 map và benchmark; phân biệt chức năng đã có với dự kiến.
+\label{subsec:project_scope}
 
+Phạm vi của đồ án là xây dựng một ứng dụng giải đố Griductive tích hợp từ mô hình dữ liệu, thực thi luật chơi và suy luận tự động đến giao diện tương tác. Hệ thống làm việc với các màn chơi được định nghĩa sẵn bằng dữ liệu có cấu trúc; mọi phán quyết và gợi ý trong quá trình chơi đều được kiểm chứng từ trạng thái công khai tại thời điểm xét. Các thành phần đã triển khai gồm:
+
+\begin{enumerate}
+    \item \textbf{Game Engine và quản lý thông tin.}
+    Xây dựng các đối tượng bàn chơi, nhân vật, manh mối và phán quyết; quản lý trạng thái đã chứng minh và các lời khai đã mở. Engine hỗ trợ khởi tạo, chơi lại, tiếp nhận phán quyết và mở lời khai khi nhân vật tương ứng được xác định, áp dụng cho cả nhân vật vô tội lẫn tội phạm. Việc chấp nhận nước đi tuân theo luật không đoán; các trường hợp chưa đủ căn cứ, trái với tri thức hiện có, ô đã được chứng minh hoặc cơ sở tri thức mâu thuẫn được phân biệt rõ. Trạng thái gửi ra giao diện không chứa đáp án ẩn hay lời khai chưa mở.
+
+    \item \textbf{Bộ mã hóa CNF, bộ giải SAT và tác tử suy luận.}
+    Cài đặt bộ mã hóa cho các ràng buộc về trạng thái, cùng hoặc khác trạng thái, đếm và so sánh số lượng, chẵn/lẻ, liên thông và phép hội của nhiều ràng buộc. Bộ giải SAT sử dụng thuật toán DPLL tự cài đặt; \textit{DPLLChecker} kết nối bộ mã hóa và bộ giải với giao diện kiểm tra ràng buộc chung. Tác tử hỗ trợ tìm nước đi chắc chắn, phân loại các ô chưa xác định và tự giải từng bước thông qua Game Engine. Vết suy luận ghi nhận các manh mối đang có, truy vấn SAT, phán quyết và manh mối mới mở. Tác tử có thể dừng khi hoàn tất, khi không còn kết luận bắt buộc hoặc khi phát hiện mâu thuẫn. Hệ thống cũng có bộ kiểm tra duyệt vét cạn để phục vụ đối chiếu tính đúng trên các trường hợp kiểm thử phù hợp.
+
+    \item \textbf{Giao diện người dùng và API.}
+    Xây dựng giao diện web bằng HTML, CSS và JavaScript, kết nối với backend FastAPI. Người dùng có thể chọn màn chơi, xem bàn cờ và lời khai đã mở, gửi phán quyết, xin gợi ý, chơi lại hoặc quan sát quá trình tự giải qua vết suy luận. API cung cấp các thao tác tương ứng với hợp đồng dữ liệu thống nhất giữa frontend và backend. Khi mất kết nối, giao diện có chế độ dữ liệu mẫu chỉ để xem; các thao tác cần kiểm chứng logic được khóa trong chế độ này.
+
+    \item \textbf{Bộ sáu màn chơi và công cụ kiểm chứng.}
+    Thiết kế hai màn $3 \times 3$ (Market, Gallery), hai màn $4 \times 4$ (Harbor, Theatre) và hai màn $5 \times 5$ (Museum, Observatory). Trong đó, năm màn được nhóm gán mức Medium và Observatory được gán mức Expert dựa trên cấu trúc suy luận. Mỗi màn bắt đầu với đúng một nhân vật đã biết là vô tội và một lời khai được mở. Bộ kiểm chứng kiểm tra cấu trúc dữ liệu, sự phù hợp của đáp án với manh mối, tính duy nhất của nghiệm và khả năng giải không đoán theo đúng tiến trình mở lời khai. Các kiểm thử còn bao phủ việc giữ kín thông tin ẩn và luồng chơi qua API.
+
+    \item \textbf{Công cụ benchmark và kiểm thử.}
+    Triển khai chương trình đo quá trình giải bằng DPLL trên sáu màn chơi, ghi nhận kích thước CNF, số biến chính và biến phụ, số mệnh đề, số truy vấn SAT, số lần phân nhánh, lan truyền và quay lui. Công cụ đồng thời thống kê số bước giải, số đợt mở thông tin, thời gian mã hóa, thời gian giải SAT, tổng thời gian và trạng thái kết thúc. Các kiểm thử tập trung vào bộ mã hóa, bộ giải, luật chơi, tác tử, màn chơi và hợp đồng API. Số liệu hiệu năng và kết quả chạy cụ thể được dành cho phần thực nghiệm; việc đã có công cụ đo không được xem là kết luận về ưu thế tốc độ so với duyệt vét cạn.
+\end{enumerate}
+
+Trong phạm vi hiện tại, lời khai tiếng Việt đóng vai trò nội dung hiển thị, còn ràng buộc logic tương ứng được khai báo trực tiếp trong dữ liệu màn chơi; hệ thống chưa tự chuyển văn bản tự nhiên thành công thức logic. Đồ án tập trung vào bộ màn chơi hữu hạn nêu trên, chưa bao gồm chức năng tự sinh màn chơi, đánh giá độ khó qua khảo sát người chơi hoặc chứng minh khả năng mở rộng trên các bàn cờ lớn hơn. Các mức độ khó vì vậy là phân loại thiết kế của nhóm, chưa phải kết quả đo từ người dùng thực tế.

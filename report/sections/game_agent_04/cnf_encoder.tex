@@ -1,3 +1,82 @@
 \subsection{CNF Encoder}
-% Note: Trình bày ánh xạ biến/literal/clause; dẫn xuất từng bước ít nhất một binary clue và một counting clue, cách mã hóa clue còn lại, số biến phụ và clause.
+\label{subsec:cnf_encoder}
+
+Mô-đun \texttt{CNFEncoder} (\texttt{cnf\_encoder.py}) chuyển đổi tự động các ràng buộc có cấu trúc và các trạng thái đã chứng minh trong \texttt{PublicState} sang dạng chuẩn hội (CNF) theo quy ước DIMACS để cung cấp trực tiếp cho bộ giải DPLL.
+
+\paragraph{Ánh xạ biến, literal và mệnh đề.}
+Khi khởi tạo trên bàn chơi gồm $N_{\text{cell}}$ ô, \texttt{CNFEncoder} sắp xếp tăng dần toàn bộ \texttt{cell\_id} và ánh xạ tất định sang các biến chính nguyên dương $v_i \in \{1, \dots, N_{\text{cell}}\}$ trong \texttt{variable\_map}; truy vấn \texttt{cell\_id} không hợp lệ sẽ phát sinh \texttt{ValueError}. Các biến phụ (\textit{auxiliary variables}) được cấp phát tăng dần qua \texttt{new\_variable()} bắt đầu từ $N_{\text{cell}} + 1$, đảm bảo tách biệt hoàn toàn với tập biến chính. Mỗi literal là số nguyên khác $0$: $+v_i$ biểu diễn $C_i$ (tội phạm) và $-v_i$ biểu diễn $\neg C_i$ (vô tội). Một mệnh đề (\textit{clause}) là tuyển ($\lor$) của các literal, còn công thức CNF là hội ($\land$) của các mệnh đề; trong đó danh sách rỗng \texttt{[]} biểu thị hằng đúng ($\top$) và danh sách chứa mệnh đề rỗng \texttt{[[]]} biểu thị hằng sai ($\bot$). Với mỗi đối tượng \texttt{Count(targets, is\_criminal)}, hàm \texttt{count\_literals} sinh danh sách literal tương ứng ($+v_i$ nếu đếm tội phạm, $-v_i$ nếu đếm vô tội). Tại mỗi lần kiểm tra nghiệm trong \texttt{DPLLChecker}, cơ sở tri thức $KB_t$ được xây mới từ toàn bộ \texttt{revealed\_clues}, các mệnh đề đơn của \texttt{proved\_statuses} và giả định kiểm chứng (nếu có); số biến phụ phát sinh bằng $\texttt{next\_variable} - 1 - N_{\text{cell}}$.
+
+\paragraph{Ràng buộc đơn và nhị phân (\texttt{Fact}, \texttt{Same}, \texttt{Different}).}
+\texttt{Fact(i, s)} được mã hóa thành một mệnh đề đơn $[+v_i]$ (nếu $s = \text{True}$) hoặc $[-v_i]$ (nếu $s = \text{False}$). Với hai ô $i, j$ có biến chính $x = v_i, y = v_j$, các ràng buộc nhị phân được dẫn xuất trực tiếp sang CNF không cần biến phụ:
+\begin{align*}
+    \texttt{Same}(i, j):\quad & x \leftrightarrow y \;\equiv\; (x \rightarrow y) \land (y \rightarrow x) \;\equiv\; (\neg x \lor y) \land (x \lor \neg y), \\
+    \texttt{Different}(i, j):\quad & x \oplus y \;\equiv\; (x \lor y) \land (\neg x \lor \neg y).
+\end{align*}
+
+\paragraph{Ràng buộc đếm và so sánh (\texttt{CountConstraint}).}
+Vì kích thước mỗi vùng trên lưới nhỏ, \texttt{CNFEncoder} sử dụng mã hóa tổ hợp trực tiếp không cần biến phụ. Với danh sách $m$ literal $L = (\ell_1, \dots, \ell_m)$ và ngưỡng nguyên $k$:
+\begin{itemize}
+    \item \texttt{AT\_LEAST} ($\sum \ell_r \ge k$): trả về \texttt{[]} nếu $k \le 0$, \texttt{[[]]} nếu $k > m$. Khi $1 \le k \le m$, không thể có $m - k + 1$ literal cùng sai, do đó mọi nhóm kích thước $m - k + 1$ phải chứa ít nhất một literal đúng:
+    \[
+        \bigwedge_{\substack{S \subseteq L \\ |S| = m - k + 1}} \left( \bigvee_{\ell \in S} \ell \right) \quad \text{gồm } \binom{m}{k - 1} \text{ mệnh đề.}
+    \]
+    \item \texttt{AT\_MOST} ($\sum \ell_r \le k$): trả về \texttt{[[]]} nếu $k < 0$, \texttt{[]} nếu $k \ge m$. Khi $0 \le k < m$, không nhóm nào gồm $k + 1$ literal cùng đúng:
+    \[
+        \bigwedge_{\substack{S \subseteq L \\ |S| = k + 1}} \left( \bigvee_{\ell \in S} \neg \ell \right) \quad \text{gồm } \binom{m}{k + 1} \text{ mệnh đề.}
+    \]
+    \item \texttt{EXACTLY} ($\sum \ell_r = k$) ghép kết quả của \texttt{AT\_LEAST}$(L, k)$ và \texttt{AT\_MOST}$(L, k)$. Hai phép so sánh \texttt{GT} ($> k$) và \texttt{LT} ($< k$) được quy lần lượt về dạng $\ge k + 1$ và $\le k - 1$. Phép \texttt{NE} ($\neq k$) loại trực tiếp từng tổ hợp có đúng $k$ literal đúng bằng $\binom{m}{k}$ mệnh đề độ dài $m$ (phủ định $k$ literal được chọn và giữ nguyên $m - k$ literal còn lại).
+    \item \emph{So sánh giữa hai vùng} ($\sum_{\ell \in L} \ell \bowtie \sum_{r \in R} r$ với $|R| = m_R$): nhờ đồng nhất thức
+    \[
+        \sum_{\ell \in L} \ell \bowtie \sum_{r \in R} r \;\iff\; \sum_{\ell \in L} \ell + \sum_{r \in R} \neg r \bowtie m_R,
+    \]
+    bộ mã hóa nối $L$ với danh sách phủ định của $R$ rồi áp dụng trực tiếp các hàm đếm ở trên với ngưỡng $k = m_R$ (tổng số literal $m = |L| + |R|$).
+\end{itemize}
+
+\emph{Ví dụ dẫn xuất counting clue:} Xét ràng buộc có đúng $k = 2$ tội phạm trong vùng gồm $m = 3$ ô $L = (v_1, v_2, v_3)$:
+\begin{align*}
+    \texttt{AT\_LEAST}(L, 2):\quad & (v_1 \lor v_2) \land (v_1 \lor v_3) \land (v_2 \lor v_3) && \text{(chọn } 3 - 2 + 1 = 2 \text{ literal),} \\
+    \texttt{AT\_MOST}(L, 2):\quad & (\neg v_1 \lor \neg v_2 \lor \neg v_3) && \text{(phủ định nhóm } 2 + 1 = 3 \text{ literal).}
+\end{align*}
+Ghép hai phần thu được đúng $4$ mệnh đề CNF với $0$ biến phụ.
+
+\paragraph{Các ràng buộc mở rộng và tổ hợp.}
+\begin{itemize}
+    \item \texttt{ParityConstraint}: Với $m \ge 1$ literal, xây chuỗi cổng XOR $p_t \leftrightarrow (p_{t-1} \oplus \ell_{t+1})$ ($p_0 = \ell_1$, $t = 1, \dots, m - 1$) dùng $m - 1$ biến phụ; mỗi cổng sinh $4$ mệnh đề 3-literal theo biến đổi Tseitin:
+    \begin{align*}
+        &(p_{t-1} \lor \ell_{t+1} \lor \neg p_t) \land (\neg p_{t-1} \lor \neg \ell_{t+1} \lor \neg p_t) \\
+        &\land\; (p_{t-1} \lor \neg \ell_{t+1} \lor p_t) \land (\neg p_{t-1} \lor \ell_{t+1} \lor p_t),
+    \end{align*}
+    kèm $1$ mệnh đề đơn $[p_{m-1}]$ (nếu lẻ) hoặc $[\neg p_{m-1}]$ (nếu chẵn). Nếu $m = 0$, trả về \texttt{[[]]} khi lẻ và \texttt{[]} khi chẵn.
+    \item \texttt{ConnectedConstraint}: Loại trùng danh sách đích còn $n$ ô phân biệt với literal chọn $s_0, \dots, s_{n-1}$ và đồ thị kề trực giao 4 hướng ($|E|$ cạnh). Bộ mã hóa dùng $n^2$ biến phụ $r^{(t)}_i$ ($0 \le t, i < n$) để mô phỏng lan truyền BFS trong $n - 1$ bước từ một gốc duy nhất:
+    \begin{enumerate}
+        \item \emph{Gốc duy nhất} ($t = 0$): $r^{(0)}_i \leftrightarrow \bigl(s_i \land \bigwedge_{j < i} \neg s_j\bigr)$, chọn ô thỏa mãn có chỉ số nhỏ nhất làm gốc.
+        \item \emph{Lan truyền} ($1 \le t \le n - 1$): với $P(i) = \{i\} \cup N_{\text{orth}}(i)$, mã hóa $r^{(t)}_i \leftrightarrow \bigl(s_i \land \bigvee_{u \in P(i)} r^{(t-1)}_u\bigr)$.
+        \item \emph{Kiểm tra liên thông}: thêm $\neg s_i \lor r^{(n-1)}_i$ với mọi $i$, và thêm $\bigvee_{i=0}^{n-1} s_i$ khi \texttt{allow\_empty = False}.
+    \end{enumerate}
+    \item \texttt{AllOf}: Hội toàn bộ mệnh đề thu được từ việc gọi đệ quy \texttt{encode\_constraint} cho từng ràng buộc thành phần, không phát sinh biến phụ ngoài các ràng buộc con.
+\end{itemize}
+
+\paragraph{Tổng hợp độ lớn mã hóa và kiểm chứng.}
+Bảng~\ref{tab:cnf_encoding_summary} tóm tắt số biến phụ và số mệnh đề sinh ra theo từng loại ràng buộc (trường hợp không suy biến). Tính đúng đắn của toàn bộ bộ mã hóa đã được kiểm chứng tự động trong \texttt{tests/test\_cnf\_encoder.py} bằng cách đối chiếu bảng chân trị trên mọi phép gán của bàn chơi với bộ đánh giá ngữ nghĩa trực tiếp \texttt{evaluate\_constraint}.
+
+\begin{table}[htbp]
+    \centering
+    \caption{Tổng hợp số biến phụ và số mệnh đề CNF theo từng loại ràng buộc}
+    \label{tab:cnf_encoding_summary}
+    \begin{tabularx}{\textwidth}{l c X}
+        \toprule
+        \textbf{Loại ràng buộc} & \textbf{Biến phụ} & \textbf{Số mệnh đề CNF} \\
+        \midrule
+        \texttt{Fact} & $0$ & $1$ \\
+        \texttt{Same} / \texttt{Different} & $0$ & $2$ \\
+        \texttt{AT\_LEAST}$(m, k)$ & $0$ & $\binom{m}{k-1}$ \quad ($1 \le k \le m$) \\
+        \texttt{AT\_MOST}$(m, k)$ & $0$ & $\binom{m}{k+1}$ \quad ($0 \le k < m$) \\
+        \texttt{EXACTLY}$(m, k)$ & $0$ & $\binom{m}{k-1} + \binom{m}{k+1}$ \quad ($0 \le k \le m$) \\
+        \texttt{NE}$(m, k)$ & $0$ & $\binom{m}{k}$ \quad ($0 \le k \le m$) \\
+        \texttt{ParityConstraint}$(m \ge 1)$ & $m - 1$ & $4(m - 1) + 1$ \\
+        \texttt{ConnectedConstraint}$(n, |E|)$ & $n^2$ & $\frac{n(n+3)}{2} + (n - 1)(3n + 2|E|) + n + \mathbb{I}_{[\neg\text{allow\_empty}]}$ \\
+        \texttt{AllOf} & $\sum \text{con}$ & $\sum \text{con}$ \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
 

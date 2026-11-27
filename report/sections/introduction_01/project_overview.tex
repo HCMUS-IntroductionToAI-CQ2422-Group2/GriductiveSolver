@@ -1,3 +1,16 @@
 \subsection{Giới thiệu trò chơi và mục tiêu đồ án}
-% Note: Giới thiệu Griductive, luật chơi không đoán và mục tiêu xây dựng hệ thống suy luận tự động.
+\label{subsec:project_overview}
+
+\textbf{Griductive} là trò chơi suy luận logic trên lưới $N \times N$ (thường với $N \in \{3, 4, 5\}$), trong đó mỗi ô đại diện cho một nhân vật có trạng thái ẩn là \textbf{tội phạm (\textit{Criminal})} hoặc \textbf{vô tội (\textit{Innocent})} cùng một manh mối có cấu trúc. Khi bắt đầu ván chơi, chỉ một số ít ô được lật sẵn tạo nên tập tri thức công khai ban đầu; các ô còn lại giữ kín. Mọi manh mối đã mở đều đúng bất kể trạng thái của nhân vật phát biểu (không phải bài toán nói thật/nói dối). Mỗi khi một phán quyết hợp lệ được chấp nhận, ô tương ứng được lật để bổ sung trạng thái và manh mối mới vào tập tri thức hiện hành.
+
+Quy tắc cốt lõi của Griductive là \textbf{luật chơi không đoán (\textit{no-guess})}: người chơi chỉ được xác nhận một nhân vật là \textit{Criminal} hay \textit{Innocent} khi kết luận đó là hệ quả logic tất yếu từ các manh mối và trạng thái đã công khai. Nếu phán quyết chưa đủ cơ sở suy diễn (kể cả khi trùng đáp án ẩn), hệ thống phải từ chối mà không mở thẻ, đồng thời phân biệt giữa chưa chứng minh được (\texttt{NOT\_PROVABLE}) và mâu thuẫn với kết luận bắt buộc ngược lại (\texttt{CONTRADICTED}).
+
+Trong khuôn khổ đồ án môn học, nhóm xây dựng hệ thống \textbf{Griductive Solver} ứng dụng logic mệnh đề, mã hóa dạng chuẩn hội (CNF) và thuật toán giải SAT DPLL với các mục tiêu trọng tâm sau:
+\begin{enumerate}
+    \item \textbf{Tái hiện trò chơi tuân thủ luật không đoán:} Xây dựng phiên bản có giao diện tương tác, tách biệt rõ vai trò giữa \textit{Game Engine} (quản lý đề, đáp án ẩn, manh mối chưa mở) và \textit{Logic Agent} (chỉ đọc trạng thái công khai).
+    \item \textbf{Tự động hóa biểu diễn logic và mã hóa CNF:} Chuyển đổi tự động các mẫu manh mối cốt lõi cùng các ràng buộc mở rộng sang cơ sở tri thức CNF theo từng bước suy luận mà không mã hóa thủ công từng đề.
+    \item \textbf{Xây dựng DPLL SAT Solver và Deductive Logic Agent:} Tự cài đặt bộ giải DPLL và tác tử suy diễn chỉ chọn phán quyết bắt buộc, mở khóa manh mối tuần tự, phát hiện trạng thái mơ hồ (\texttt{UNKNOWN}) hoặc mâu thuẫn (\texttt{INCONSISTENT}), lưu vết suy luận và kiểm tra tính duy nhất của nghiệm.
+    \item \textbf{Kiểm chứng và đánh giá thực nghiệm:} Đo đạc số biến, số mệnh đề, số truy vấn SAT, thống kê tìm kiếm DPLL và thời gian chạy trên bộ màn chơi các cỡ $3 \times 3$, $4 \times 4$ và $5 \times 5$.
+\end{enumerate}
+
 
