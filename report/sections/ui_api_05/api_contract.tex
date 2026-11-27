@@ -2,6 +2,56 @@
 \label{sec:ui_api_flow}
 \begin{sloppypar}
 
+\paragraph{Giao tiếp FastAPI và các endpoint}
+Frontend giao tiếp với backend qua các endpoint FastAPI; các mô hình Pydantic
+quy định chặt chẽ cấu trúc yêu cầu và phản hồi (\texttt{StrictInt},
+\texttt{StrictBool}). Backend trả về trạng thái công khai của ván theo cấu trúc
+\texttt{PublicStateResponse}, gồm mã màn chơi, kích thước bàn, danh sách ô, các
+manh mối đã mở và cờ hoàn thành. Trường \texttt{is\_criminal} nhận
+\texttt{true} hoặc \texttt{false} khi trạng thái của ô đã được chứng minh, và
+nhận \texttt{null} khi chưa xác định.
+
+Khi người chơi gửi nhận định, frontend gọi \nolinkurl{POST /api/game/verdicts}
+với \texttt{cell\_id} và \texttt{is\_criminal}. Engine kiểm tra nhận định dựa
+trên thông tin hiện có, sau đó API trả về \texttt{outcome} và \texttt{state}.
+Chỉ kết quả \texttt{ACCEPTED} cập nhật trạng thái ô và mở manh mối gắn với ô.
+Nhận định chưa đủ căn cứ vẫn được xử lý với HTTP~200 và \texttt{outcome} là
+\texttt{NOT\_PROVABLE}; API trả HTTP~404 nếu mã ô không tồn tại và HTTP~422 nếu
+dữ liệu gửi lên sai kiểu. Endpoint \nolinkurl{GET /api/game/hint} trả về nhận
+định được đề xuất cùng các truy vấn SAT dùng để suy luận mà không làm thay đổi
+trạng thái ván. Bảng~\ref{tab:backend-endpoints} tóm tắt bảy endpoint phục vụ
+bàn chơi; chi tiết các mã lỗi và ví dụ JSON được trình bày ở
+Phụ lục~\ref{sec:api_pseudocode} (Bảng~\ref{tab:api_endpoints}).
+
+\begin{table}[htbp]
+  \centering
+  \caption{Các endpoint phục vụ bàn chơi}
+  \label{tab:backend-endpoints}
+  \small
+  \begin{tabularx}{\linewidth}{@{}l l >{\raggedright\arraybackslash}X@{}}
+    \toprule
+    \textbf{Phương thức} & \textbf{Đường dẫn}
+      & \textbf{Dữ liệu yêu cầu và phản hồi} \\
+    \midrule
+    GET & \nolinkurl{/api/puzzles}
+      & Trả về danh sách mã màn chơi. \\
+    GET & \nolinkurl{/api/game}
+      & Trả về trạng thái công khai hiện tại (\texttt{PublicStateResponse}). \\
+    POST & \nolinkurl{/api/game/load}
+      & Nhận \texttt{puzzle\_id}, trả về trạng thái khởi tạo của màn được chọn. \\
+    POST & \nolinkurl{/api/game/restart}
+      & Trả về trạng thái ban đầu của màn hiện tại. \\
+    POST & \nolinkurl{/api/game/verdicts}
+      & Nhận \texttt{cell\_id} và \texttt{is\_criminal}, trả về
+        \texttt{outcome} và \texttt{state}. \\
+    GET & \nolinkurl{/api/game/hint}
+      & Trả về \texttt{status}, \texttt{verdict} và \texttt{sat\_queries}. \\
+    POST & \nolinkurl{/api/game/auto-solve}
+      & Trả về \texttt{status}, \texttt{state} và \texttt{trace}. \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
 \paragraph{Luồng xử lý một thao tác}
 Mọi thao tác trên giao diện đều đi qua cùng một luồng gồm bốn bước:
 \begin{enumerate}
@@ -25,21 +75,20 @@ Mọi thao tác trên giao diện đều đi qua cùng một luồng gồm bốn
 Như vậy, giao diện không tự quyết định phán quyết nào là đúng mà chỉ hiển thị
 \texttt{outcome} cùng trạng thái do backend trả về. Tại mỗi thời điểm chỉ có một
 yêu cầu được gửi đi (thông qua cờ \texttt{busy} trong hàm \texttt{run}), nhờ đó
-người chơi không thể bấm chồng hai phán quyết lên nhau. Danh sách đầy đủ bảy
-endpoint, các mã lỗi và ví dụ JSON được trình bày ở
-Phụ lục~\ref{sec:api_pseudocode} (Bảng~\ref{tab:api_endpoints}).
+người chơi không thể bấm chồng hai phán quyết lên nhau.
 
 \paragraph{Tự giải và trả lại quyền chơi}
-Endpoint \nolinkurl{/api/game/auto-solve} giải trọn ván trên server trong một
-yêu cầu duy nhất và trả về \texttt{\{status, state, trace\}}. Hiệu ứng ``AI đang
-suy luận'' mà người chơi thấy được thực hiện hoàn toàn ở phía trình duyệt, trong
-đó \texttt{playback.js} dựng trước dãy trạng thái sau từng bước từ
-\texttt{trace} (gồm ô được kết luận và \texttt{revealed\_clue\_ids}) rồi phát lại
-theo nhịp. Vì server đã giải xong toàn bộ ván, nút \emph{Tự chơi tiếp} cần đưa
-server trở về đúng bước đang được xem. Để làm điều đó, giao diện gọi
-\nolinkurl{/api/game/restart}, nộp lại lần lượt các phán quyết mà người chơi đã
-đưa ra trước đó, rồi đến các phán quyết của AI cho tới bước hiện tại; mỗi phán
-quyết này vẫn được engine kiểm tra như bình thường.
+Endpoint \nolinkurl{POST /api/game/auto-solve} tiếp tục từ trạng thái hiện tại,
+giải trọn ván trên server trong một yêu cầu duy nhất và trả về
+\texttt{\{status, state, trace\}}. Hiệu ứng ``AI đang suy luận'' mà người chơi
+thấy được thực hiện hoàn toàn ở phía trình duyệt, trong đó \texttt{playback.js}
+dựng trước dãy trạng thái sau từng bước từ \texttt{trace} (gồm ô được kết luận
+và \texttt{revealed\_clue\_ids}) rồi phát lại theo nhịp. Vì server đã giải xong
+toàn bộ ván, nút \emph{Tự chơi tiếp} cần đưa server trở về đúng bước đang được
+xem. Để làm điều đó, giao diện gọi \nolinkurl{/api/game/restart}, nộp lại lần
+lượt các phán quyết mà người chơi đã đưa ra trước đó, rồi đến các phán quyết của
+AI cho tới bước hiện tại; mỗi phán quyết này vẫn được engine kiểm tra như bình
+thường.
 
 \paragraph{Hợp đồng dữ liệu}
 Hai phía thống nhất với nhau thông qua ba nguồn được giữ đồng bộ, gồm
