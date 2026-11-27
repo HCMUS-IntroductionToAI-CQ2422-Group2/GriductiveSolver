@@ -1,2 +1,35 @@
 \subsection{Thiết lập thực nghiệm}
 % Note: Nêu mục tiêu đo; tóm tắt môi trường, phiên bản mã nguồn, 6 map, số lần lặp và phạm vi đo. Định nghĩa các chỉ số thực tế sử dụng như thời gian encode/SAT/giải toàn map, số biến/clause và số truy vấn; ghi baseline và điều kiện so sánh nếu có.
+% Bảng thống kê
+Chi tiết kết quả thực nghiệm trên 6 bản đồ qua 5 lần lặp (lấy giá trị trung bình) được tổng hợp tại Bảng \ref{tab:benchmark}. Dữ liệu log thô (raw data) của từng lượt chạy được dẫn và trình bày chi tiết tại Phụ lục \ref{app:detailed_results}.
+
+\begin{table}[h]
+    \centering
+    \caption{Tổng hợp kết quả đo lường DPLL Solver trên 6 bản đồ Griductive}
+    \label{tab:benchmark}
+    \resizebox{\textwidth}{!}{
+    \begin{tabular}{|l|c|c|c|c|c|c|c|c|}
+        \hline
+        \textbf{Bản đồ} & \textbf{Kích thước} & \textbf{Biến (Chính/Phụ)} & \textbf{Clauses (Đầu/Cuối)} & \textbf{Steps/Waves} & \textbf{SAT Calls} & \textbf{Dec / Prop / Back} & \textbf{Thời gian (ms)} & \textbf{Trạng thái} \\ \hline
+        Market & $3\times3$ & 9 / 3 & 3 / 34 & 8 / 3 & 45 & 0 / 327 / 0 & 3.04 & \textbf{PASS} \\ \hline
+        Gallery & $3\times3$ & 9 / 2 & 3 / 29 & 8 / 4 & 53 & 16 / 372 / 0 & 3.43 & \textbf{PASS} \\ \hline
+        Harbor & $4\times4$ & 16 / 2 & 3 / 162 & 15 / 4 & 108 & 102 / 1226 / 0 & 36.07 & \textbf{PASS} \\ \hline
+        Theatre & $4\times4$ & 16 / 9 & 5 / 87 & 15 / 6 & 106 & 13 / 1447 / 0 & 31.86 & \textbf{PASS} \\ \hline
+        Museum & $5\times5$ & 25 / 0 & 4 / 1753 & 24 / 5 & 131 & 105 / 1998 / 12 & 827.46 & \textbf{PASS} \\ \hline
+        Observatory & $5\times5$ & 25 / 56 & 134 / 1616 & 24 / 8 & 155 & 181 / 9344 / 41 & 1901.22 & \textbf{PASS} \\ \hline
+    \end{tabular}
+    }
+\end{table}
+
+\textbf{Nhận xét và phân tích chuyên sâu:}
+\begin{itemize}
+    \item \textbf{Ảnh hưởng của kích thước bản đồ và loại Clue:} Kích thước bản đồ tỷ lệ thuận với số biến chính ($N^2$), trong khi cấu trúc nội tại của Clue quyết định số biến phụ và số lượng Clause. Ở các baseline cơ sở ($3\times3$ và $4\times4$), KB duy trì kích thước nhỏ gọn (dưới 200 clauses). Khi mở rộng lên $5\times5$, độ phức tạp của bài toán bùng nổ theo hàm mũ.
+    
+    \item \textbf{Giải thích số liệu bất thường (Outliers):} 
+    \begin{itemize}
+        \item \textit{Bùng nổ Clause ở bản đồ Museum $5\times5$ (1753 clauses):} Mặc dù không sử dụng biến phụ nào (0 Auxiliary), số lượng clause lại tăng vọt. Nguyên nhân là do bản đồ này áp dụng nhiều ràng buộc đếm chính xác (Exact Count) trên các vùng không gian lớn. Với phương pháp mã hóa tổ hợp (combinatorial encoding) hiện tại, các ràng buộc đếm sinh ra số lượng clause tương đương hệ số nhị thức $\binom{N}{k}$, dẫn đến sự phình to đột biến của Knowledge Base.
+        \item \textit{Bùng nổ biến phụ ở bản đồ Observatory $5\times5$ (56 Auxiliary):} Bản đồ độ khó Expert này chứa hàng loạt manh mối Parity (chẵn/lẻ) và Connected (kết nối lân cận). Để tránh vết xe đổ bùng nổ clause như map Museum, bộ CNF Encoder bắt buộc phải khai báo thêm nhiều biến phụ để kết nối chuỗi XOR (đối với Parity) và mô phỏng luồng đồ thị (đối với Connected).
+    \end{itemize}
+    
+    \item \textbf{Tương quan giữa truy vấn SAT và thao tác DPLL:} Số lượng truy vấn (SAT Calls) dao động từ 45 đến 155 lần, phụ thuộc trực tiếp vào số bước giải mã (Deduction Steps). Ở bản đồ khó nhất (Observatory), thuật toán DPLL phải xử lý 181 phân nhánh (Decisions) và 41 lần quay lui (Backtracks). Dữ liệu này chứng minh hai điều: (1) thuật toán đã đụng độ và xử lý thành công các xung đột logic sâu, và (2) hệ thống vẫn đảm bảo thời gian chạy tối ưu (khoảng 1.9 giây) mà không bị treo (timeout).
+\end{itemize}
