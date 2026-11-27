@@ -1,3 +1,195 @@
 \subsection{Uniqueness checking}
-% Note: Mô tả kiểm tra đáp án thỏa toàn bộ clue và tìm nghiệm khác bằng cách thử đảo trạng thái từng ô theo cài đặt; phân biệt nghiệm duy nhất với khả năng giải theo reveal protocol.
+\label{sec:uniqueness_checking}
+\begin{sloppypar}
+% Tiêu đề \paragraph nằm trên một dòng riêng; sloppypar là một nhóm nên cấu
+% hình này chỉ áp dụng trong mục này.
+\titleformat{\paragraph}[hang]{\normalfont\bfseries}{}{0pt}{}
+\titlespacing*{\paragraph}{0pt}{8pt}{2pt}
 
+Một bản đồ Griductive hợp lệ phải có đúng một lời giải, bởi nếu tồn tại hai cấu
+hình tội trạng cùng thỏa mọi lời khai thì không có cách nào phân biệt chúng bằng
+suy luận, và người chơi buộc phải đoán. Trong hệ thống, tính duy nhất của nghiệm
+được kiểm tra bởi hàm \texttt{\_check\_unique\_solution} trong
+\texttt{BackEnd/GameEngine/validation.py}. Hàm này là bước thứ hai của
+\texttt{validate\_puzzle}, chạy sau bước kiểm tra cấu trúc (và kiểm tra mỗi ô có
+đúng một lời khai nếu bật \texttt{require\_clue\_per\_cell}), đồng thời chạy
+trước bước kiểm tra khả năng giải không cần đoán. Cũng giống engine, hàm chỉ
+làm việc với bộ giải thông qua giao diện \texttt{ConstraintChecker}, nên có thể
+dùng \texttt{DPLLChecker} hoặc \texttt{BruteForceChecker} tùy ý.
+
+\paragraph{Tri thức dùng để kiểm tra}
+Khác với ván chơi, nơi bộ giải chỉ thấy $\mathit{KB}_t$, bước kiểm tra này được
+phép dùng tri thức đầy đủ của người thiết kế, tức toàn bộ tập lời khai
+$\mathcal{K}$ kể cả những lời khai chưa lật (Mục~\ref{sec:knowledge_base}). Hàm
+dựng tri thức đó bằng một hàm cục bộ \texttt{all\_clues\_state(proved)}, trả về
+một \texttt{PublicState} có \texttt{revealed\_clues} là \emph{toàn bộ}
+\texttt{puzzle.clues} và \texttt{proved\_statuses} là phép gán được truyền vào.
+Như vậy, với một tập phán quyết $P$ cho trước, trạng thái này tương ứng với công
+thức
+\begin{equation}
+  \mathit{KB}_{\mathrm{full}}(P) \;=\;
+  \bigwedge_{\gamma \in \mathcal{K}} \phi_\gamma \;\land\;
+  \bigwedge_{\langle i, s\rangle \in P} \phi_{\mathrm{Fact}(i,s)} .
+  \label{eq:kb_full}
+\end{equation}
+Đây cũng là lý do \texttt{validate\_puzzle} là nơi duy nhất trong hệ thống tự
+dựng \texttt{PublicState} mà không đi qua \texttt{GameEngine}
+(Mục~\ref{sec:information_visibility}).
+
+\paragraph{Bước 1: đáp án khai báo thỏa toàn bộ lời khai}
+Hàm trước hết gọi \texttt{has\_solution} trên
+$\mathit{KB}_{\mathrm{full}}(\sigma^\star)$, trong đó toàn bộ đáp án khai báo
+$\sigma^\star$ được đưa vào dưới dạng các ô đã chứng minh và không kèm giả thiết
+nào. Vì mọi biến ô đều đã bị cố định, truy vấn này thực chất chỉ kiểm tra
+$\sigma^\star$ có thỏa mọi lời khai hay không: với \texttt{BruteForceChecker}
+không còn ô tự do nào để duyệt, còn với \texttt{DPLLChecker} các mệnh đề đơn vị
+của phán quyết được lan truyền ngay từ đầu. Nếu truy vấn không thỏa được, hàm
+dừng với lỗi \texttt{Declared solution does not satisfy all clues}, và ca kiểm
+thử \texttt{test\_declared\_solution\_violates\_clues} kiểm tra đúng trường hợp
+này bằng cách đổi chỗ tội phạm trong đáp án.
+
+\paragraph{Bước 2: không tồn tại nghiệm thứ hai}
+Sau khi biết $\sigma^\star$ là một nghiệm, hàm dựng trạng thái gốc
+$\mathit{KB}_{\mathrm{full}}(\mathcal{P}_0)$, trong đó các phán quyết ban đầu
+\texttt{initial\_verdicts} được cố định cùng toàn bộ lời khai. Với mỗi ô $i$
+không thuộc $\mathcal{P}_0$, hàm thử đảo trạng thái của ô đó so với đáp án bằng
+truy vấn
+\begin{equation}
+  \mathrm{SAT}\bigl(\mathit{KB}_{\mathrm{full}}(\mathcal{P}_0) \land
+  (x_i \ne \sigma^\star(i))\bigr),
+  \label{eq:flip_query}
+\end{equation}
+được cài đặt là \texttt{has\_solution(base, Verdict(cell\_id, not
+is\_criminal))}. Mỗi ô làm truy vấn này thỏa được sẽ được đưa vào danh sách
+\texttt{ambiguous}. Hàm không dừng ở ô đầu tiên mà duyệt hết mọi ô rồi mới báo
+lỗi \texttt{Solution is not unique: cells [...] can differ} kèm danh sách đã sắp
+xếp, nhờ đó người thiết kế biết ngay tất cả những ô còn mơ hồ.
+Thuật toán~\ref{alg:unique_solution} tóm tắt cả hai bước.
+
+\begin{algorithm}[htbp]
+  \caption{\texttt{\_check\_unique\_solution}}
+  \label{alg:unique_solution}
+  \begin{algorithmic}[1]
+    \Require bản đồ với tập lời khai $\mathcal{K}$, đáp án $\sigma^\star$,
+      phán quyết ban đầu $\mathcal{P}_0$; bộ kiểm tra \textsc{HasSolution}
+    \Ensure không trả gì nếu nghiệm duy nhất, ngược lại báo lỗi
+    \If{\textbf{not} $\textsc{HasSolution}(\mathit{KB}_{\mathrm{full}}(\sigma^\star))$}
+      \State \textbf{raise} ``đáp án không thỏa toàn bộ lời khai''
+    \EndIf
+    \State $\mathit{ambiguous} \gets [\,]$
+    \For{mỗi ô $i \notin \mathcal{P}_0$}
+      \If{$\textsc{HasSolution}(\mathit{KB}_{\mathrm{full}}(\mathcal{P}_0),\ \langle i, \neg\sigma^\star(i)\rangle)$}
+        \State thêm $i$ vào $\mathit{ambiguous}$
+      \EndIf
+    \EndFor
+    \If{$\mathit{ambiguous} \ne [\,]$}
+      \State \textbf{raise} ``nghiệm không duy nhất'' kèm $\mathit{ambiguous}$
+    \EndIf
+  \end{algorithmic}
+\end{algorithm}
+
+\paragraph{Vì sao đảo từng ô là đủ}
+Hai bước trên tương đương với khẳng định $\sigma^\star$ là mô hình duy nhất của
+$\mathit{KB}_{\mathrm{full}}(\mathcal{P}_0)$ khi xét trên các biến ô. Thật vậy,
+nếu tồn tại một mô hình $\sigma' \ne \sigma^\star$ thì $\sigma'$ phải khác
+$\sigma^\star$ tại ít nhất một ô $i$. Ô này không thể thuộc $\mathcal{P}_0$, vì
+mọi mô hình đều phải khớp với các phán quyết ban đầu, còn các phán quyết ban đầu
+đã được bước kiểm tra cấu trúc xác nhận là trùng với đáp án. Khi đó $\sigma'$
+chính là nghiệm của truy vấn \eqref{eq:flip_query} tại ô $i$, nên ô $i$ bị đánh
+dấu mơ hồ. Ngược lại, nếu truy vấn \eqref{eq:flip_query} thỏa được tại một ô
+nào đó thì mô hình tìm được khác $\sigma^\star$ tại ô ấy, tức là nghiệm thứ hai.
+Nói cách khác, nghiệm là duy nhất khi và chỉ khi mọi ô đều được
+$\mathit{KB}_{\mathrm{full}}(\mathcal{P}_0)$ suy ra theo nghĩa của
+\eqref{eq:entailment}; đây chính là phép phân loại Criminal/Innocent ở Mục~4.4
+áp dụng trên tri thức đầy đủ thay vì tri thức công khai. Phép kiểm tra chỉ xét
+các biến ô và không quan tâm đến biến phụ trợ của \texttt{ParityConstraint} hay
+\texttt{ConnectedConstraint}, vì giả thiết được truyền vào bộ giải luôn là một
+phán quyết trên ô.
+
+Nhờ vậy, thay vì phải liệt kê toàn bộ $2^{|\mathcal{C}|}$ phép gán, hàm chỉ cần
+$1 + |\mathcal{C}| - |\mathcal{P}_0|$ lời gọi \texttt{has\_solution}. Cả sáu bản
+đồ đều có đúng một phán quyết ban đầu, nên số lời gọi bằng đúng số ô, tức $9$,
+$16$ và $25$ lần cho lưới $3\times3$, $4\times4$ và $5\times5$. Nhóm đã chạy lại
+\texttt{validate\_puzzle(..., require\_clue\_per\_cell=True)} trên cả sáu bản
+đồ với cả \texttt{BruteForceChecker} lẫn \texttt{DPLLChecker} và đều thu được kết
+quả hợp lệ, trong khi bộ kiểm thử hiện chỉ gọi hàm này với
+\texttt{BruteForceChecker} (\texttt{test\_maps}, \texttt{test\_validation},
+\texttt{test\_integration}). Ca \texttt{test\_two\_solutions\_rejected} minh họa
+trường hợp lỗi: trên bàn $2\times2$ với hai lời khai ``có đúng một tội phạm'' và
+``ô 2, 3 không có tội phạm'', cả ô~0 lẫn ô~1 đều có thể là tội phạm, nên hàm báo
+\texttt{not unique: cells [0, 1]}.
+
+\paragraph{Phân biệt với kiểm tra giải không cần đoán}
+Nghiệm duy nhất là điều kiện cần nhưng chưa đủ để một bản đồ chơi được theo luật
+Griductive. Bước kiểm tra cuối cùng của \texttt{validate\_puzzle} là
+\texttt{\_check\_solvable\_without\_guessing}, hoạt động theo cách hoàn toàn
+khác. Hàm này tạo một \texttt{GameEngine} thật từ bản đồ và cho một ``người chơi
+hoàn hảo'' biết trước đáp án chơi qua engine theo từng vòng: trong mỗi vòng, nó
+lần lượt nộp phán quyết đúng cho mọi ô chưa chứng minh theo thứ tự định danh, và
+mỗi phán quyết được chấp nhận sẽ lật lời khai mới theo đúng giao thức
+\eqref{eq:reveal}. Nếu một vòng trôi qua mà không có phán quyết nào được chấp
+nhận trước khi ván hoàn tất, hàm báo lỗi \texttt{Puzzle requires guessing} kèm
+danh sách các ô còn lại. Điểm mấu chốt là ở đây engine quyết định chấp nhận dựa
+trên $\mathit{KB}_t$ với các lời khai \emph{đã lật}, chứ không phải toàn bộ
+$\mathcal{K}$, nên bước này kiểm tra được thứ tự mở thông tin mà bước kiểm tra
+tính duy nhất bỏ qua. Bảng~\ref{tab:unique_vs_guess} tóm tắt sự khác biệt giữa
+hai bước.
+
+\begin{table}[htbp]
+  \centering\small
+  \caption{So sánh hai bước kiểm chứng ngữ nghĩa trong \texttt{validate\_puzzle}}
+  \label{tab:unique_vs_guess}
+  \begin{tabularx}{\textwidth}{l>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X}
+    \toprule
+    & \textbf{\texttt{\_check\_unique\_\allowbreak solution}}
+    & \textbf{\texttt{\_check\_solvable\_\allowbreak without\_guessing}} \\
+    \midrule
+    Tri thức dùng       & Toàn bộ lời khai $\mathcal{K}$ và $\mathcal{P}_0$
+                        & Chỉ lời khai đã lật $\mathcal{R}_t$ và $\mathcal{P}_t$ tại từng thời điểm \\
+    Giao thức lật mở    & Không xét & Áp dụng đúng như khi chơi, qua \texttt{GameEngine} \\
+    Cách gọi bộ giải    & Gọi trực tiếp \texttt{has\_solution}
+                        & Gián tiếp qua \texttt{submit\_verdict}, hai truy vấn mỗi lần nộp \\
+    Câu hỏi trả lời     & Có tồn tại nghiệm thứ hai không?
+                        & Tại mọi thời điểm chưa xong, có ô nào suy ra được từ thông tin công khai không? \\
+    Thông báo lỗi       & ``does not satisfy all clues''; ``not unique: cells [...]''
+                        & ``requires guessing'' kèm danh sách ô; ``contradict the solution'' \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+Giữa hai bước có một quan hệ một chiều. Nếu bản đồ giải được không cần đoán thì
+mọi ô đều đã được suy ra từ một $\mathit{KB}_t$, mà $\mathit{KB}_t$ chỉ là một
+phần của $\mathit{KB}_{\mathrm{full}}(\mathcal{P}_0)$ cộng thêm các phán quyết
+vốn cũng được suy ra theo cách đó, nên bằng quy nạp mọi ô đều được
+$\mathit{KB}_{\mathrm{full}}(\mathcal{P}_0)$ suy ra và nghiệm là duy nhất. Chiều
+ngược lại thì không đúng, và ca kiểm thử \texttt{test\_requires\_guessing} là
+một phản ví dụ cụ thể. Bàn $2\times2$ ở đây có ba lời khai: hai lời khai công
+khai ``có đúng một tội phạm'' và ``ô 2, 3 không có tội phạm'', cùng lời khai
+``ô 1 vô tội'' do chính ô~1 nắm giữ. Xét trên toàn bộ lời khai, nghiệm là duy
+nhất (ô~0 là tội phạm), nên bước 2 không báo lỗi. Tuy nhiên khi chơi, sau khi ô~2
+và ô~3 được chứng minh vô tội thì ô~0 và ô~1 vẫn hòa nhau, trong khi lời khai
+phá thế hòa lại chỉ được lật khi ô~1 đã được chứng minh, điều không bao giờ xảy
+ra được. Hàm \texttt{\_check\_solvable\_without\_guessing} vì vậy báo
+\texttt{requires guessing} với các ô \texttt{[0, 1]}.
+
+\paragraph{Vì sao vẫn giữ cả hai bước}
+Dù bước không đoán đã kéo theo tính duy nhất, bước kiểm tra tính duy nhất vẫn
+có ích theo hai cách. Thứ nhất, nó chẩn đoán lỗi rõ hơn: một bản đồ có nhiều
+nghiệm là lỗi ở chính tập lời khai, còn một bản đồ nghiệm duy nhất nhưng phải
+đoán là lỗi ở cách phân bố lời khai giữa các ô, và việc tách hai bước giúp người
+thiết kế biết cần sửa ở đâu. Thứ hai, bước 1 là nơi duy nhất bảo đảm đáp án khai
+báo thỏa \emph{mọi} lời khai. Vòng lặp của bước không đoán kết thúc ngay khi
+\texttt{is\_complete} đúng, nên lời khai được lật bởi phán quyết cuối cùng không
+bao giờ được đem ra kiểm tra trong vòng lặp đó; bước 1 bù lại điều này. Cũng vì
+bước 1 đã chạy trước, nhánh báo lỗi \texttt{CONTRADICTED} trong bước không đoán
+thực tế không thể xảy ra: khi $\sigma^\star$ thỏa mọi lời khai thì nó cũng thỏa
+mọi tập con đã lật, nên trạng thái đúng của một ô luôn còn khả dĩ.
+
+Cuối cùng, cần lưu ý rằng một ``vòng'' của bước không đoán không trùng với một
+``sóng suy luận'' ở Mục~\ref{sec:reveal_protocol}. Trong cùng một vòng, ảnh chụp
+công khai được cập nhật ngay sau mỗi phán quyết được chấp nhận, nên lời khai vừa
+lật có thể được dùng cho các ô có định danh lớn hơn ngay trong vòng đó, còn một
+sóng chỉ dùng thông tin có ở đầu sóng. Số vòng do hàm này thực hiện vì vậy có
+thể nhỏ hơn số sóng ghi trong Bảng~\ref{tab:map_overview}, và hàm chỉ được dùng
+để trả lời câu hỏi có giải được hay không chứ không dùng để đo độ khó.
+\end{sloppypar}
