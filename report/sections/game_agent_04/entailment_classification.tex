@@ -1,3 +1,123 @@
 \subsection{Entailment classification}
-% Note: Lập bảng SAT(KB AND x) và SAT(KB AND NOT x) để phân loại Criminal, Innocent, Unknown và KB không nhất quán; giải thích phép suy ra bằng phản chứng.
+\label{sec:entailment_classification}
+\begin{sloppypar}
 
+Bộ giải DPLL chỉ trả lời một câu hỏi: một công thức có thỏa được hay không.
+Mục này trình bày cách tác nhân ghép hai câu trả lời như vậy thành một kết luận
+về hệ quả logic, và cách kết luận đó được chuyển thành nhãn của từng ô.
+
+\paragraph{Suy ra bằng phản chứng.}
+Một tập công thức $\mathit{KB}$ suy ra công thức $\alpha$, ký hiệu
+$\mathit{KB} \models \alpha$, khi mọi mô hình của $\mathit{KB}$ đều là mô hình
+của $\alpha$. Điều này tương đương với việc không tồn tại mô hình nào của
+$\mathit{KB}$ làm $\alpha$ sai, tức là
+\begin{equation}
+  \mathit{KB} \models \alpha
+  \iff
+  \mathit{KB} \land \neg\alpha \text{ không thỏa được}.
+  \label{eq:refutation}
+\end{equation}
+Đây là nguyên lý chứng minh bằng phản chứng: để chứng minh $\alpha$, ta giả sử
+$\neg\alpha$ rồi chỉ ra giả sử đó mâu thuẫn với tri thức đã có. Với
+$\alpha = x_i$ (ô $i$ là tội phạm) và $\alpha = \neg x_i$ (ô $i$ vô tội),
+\eqref{eq:refutation} quy việc kiểm tra hệ quả về đúng hai truy vấn SAT:
+\begin{equation}
+  c_i = \mathrm{SAT}(\mathit{KB}_t \land x_i),
+  \qquad
+  n_i = \mathrm{SAT}(\mathit{KB}_t \land \neg x_i).
+  \label{eq:two_queries}
+\end{equation}
+Theo \eqref{eq:refutation}, $\mathit{KB}_t \models x_i$ khi và chỉ khi
+$n_i$ sai, và $\mathit{KB}_t \models \neg x_i$ khi và chỉ khi $c_i$ sai. Trong
+mã nguồn, $c_i$ là \texttt{has\_solution(state, Verdict(i, True))} và $n_i$ là
+\texttt{has\_solution(state, Verdict(i, False))}; giả thiết được đưa vào
+$\mathit{KB}_t$ dưới dạng mệnh đề đơn vị $(x_i)$ hoặc $(\neg x_i)$.
+
+\paragraph{Bảng phân loại.}
+Hai giá trị Boolean cho bốn trường hợp, tương ứng bốn nhãn trong
+Bảng~\ref{tab:entailment_classification}. Các nhãn này là kiểu
+\texttt{CellClassification} và \texttt{ClassificationStatus} trong
+\texttt{DeductiveAgent.py}.
+
+\begin{table}[htbp]
+  \centering\small
+  \caption{Phân loại ô $i$ từ hai truy vấn SAT}
+  \label{tab:entailment_classification}
+  \begin{tabularx}{\textwidth}{ccl>{\raggedright\arraybackslash}X}
+    \toprule
+    $c_i = \mathrm{SAT}(\mathit{KB}_t \land x_i)$
+      & $n_i = \mathrm{SAT}(\mathit{KB}_t \land \neg x_i)$
+      & \textbf{Nhãn} & \textbf{Ý nghĩa logic} \\
+    \midrule
+    \texttt{True}  & \texttt{False} & \texttt{CRIMINAL}
+      & $\mathit{KB}_t \models x_i$: mọi mô hình đều cho ô $i$ là tội phạm \\
+    \texttt{False} & \texttt{True}  & \texttt{INNOCENT}
+      & $\mathit{KB}_t \models \neg x_i$: mọi mô hình đều cho ô $i$ vô tội \\
+    \texttt{True}  & \texttt{True}  & \texttt{UNKNOWN}
+      & Có mô hình cho mỗi trạng thái; thông tin công khai chưa đủ để kết luận \\
+    \texttt{False} & \texttt{False} & \texttt{INCONSISTENT}
+      & $\mathit{KB}_t$ không có mô hình nào; lời khai công khai mâu thuẫn \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+Bảng này là bảng \texttt{submit\_verdict} (Bảng~\ref{tab:submit_outcome}) nhìn
+từ phía tác nhân. Engine nhận một phán quyết $\langle i, s\rangle$ cụ thể và
+hỏi trạng thái \emph{đó} có bị ép buộc không; tác nhân chưa có phán quyết nào
+trong tay nên hỏi cả hai trạng thái và đọc ra trạng thái bị ép buộc, nếu có.
+Nhãn \texttt{CRIMINAL} ứng với việc phán quyết $\langle i, \top\rangle$ sẽ
+được chấp nhận, nhãn \texttt{INNOCENT} ứng với $\langle i, \bot\rangle$, còn
+nhãn \texttt{UNKNOWN} ứng với kết quả \texttt{NOT\_PROVABLE} cho cả hai phán
+quyết.
+
+\paragraph{Kiểm tra nhất quán trước.}
+Trước khi xét bất kỳ ô nào, cả \texttt{next\_move} lẫn \texttt{classify\_all}
+gọi \texttt{has\_solution(state)} không kèm giả thiết. Nếu $\mathit{KB}_t$
+không thỏa được, tác nhân trả ngay trạng thái \texttt{INCONSISTENT} mà không
+phân loại ô nào. Bước này cần thiết vì một $\mathit{KB}$ mâu thuẫn suy ra mọi
+công thức: khi đó cả $c_i$ lẫn $n_i$ đều sai với mọi $i$, và nếu không kiểm
+tra trước, tác nhân sẽ không có cơ sở phân biệt ``ô này không rõ'' với ``bản đồ
+bị lỗi''. Ngược lại, khi $\mathit{KB}_t$ đã thỏa được, mọi mô hình của nó gán
+cho $x_i$ một giá trị nào đó, nên ít nhất một trong $c_i, n_i$ đúng. Dòng cuối
+của Bảng~\ref{tab:entailment_classification} vì vậy không thể xảy ra sau bước
+kiểm tra này; \texttt{classify\_all} vẫn giữ nhánh xử lý nó như một chốt chặn
+phòng thủ.
+
+\paragraph{Ví dụ.}
+Xét bản đồ Khu chợ ngay sau khi An (ô~$0$, A1) được xác nhận vô tội.
+$\mathit{KB}_0$ gồm mệnh đề $(\neg x_0)$ và lời khai của An, ``Dũng (A2) và Chi
+(C1) đều vô tội'', mã hóa thành $(\neg x_3) \land (\neg x_2)$.
+\begin{itemize}
+  \item Với ô~$1$ (Bình), cả $\mathit{KB}_0 \land x_1$ lẫn
+    $\mathit{KB}_0 \land \neg x_1$ đều thỏa được vì chưa lời khai nào nhắc đến
+    Bình, nên ô~$1$ có nhãn \texttt{UNKNOWN}.
+  \item Với ô~$2$ (Chi), $\mathit{KB}_0 \land x_2$ chứa cả $(x_2)$ lẫn
+    $(\neg x_2)$; lan truyền đơn vị sinh mệnh đề rỗng nên $c_2$ sai, còn $n_2$
+    đúng. Ô~$2$ có nhãn \texttt{INNOCENT}.
+\end{itemize}
+Ở trạng thái này \texttt{classify\_all} cho đúng hai ô \texttt{INNOCENT} (ô~$2$
+và ô~$3$), còn sáu ô còn lại là \texttt{UNKNOWN}. Cặp truy vấn của ô~$1$ và ô~$2$
+xuất hiện nguyên văn ở bước đầu của trace trong
+Bảng~\ref{tab:market_trace}.
+
+\paragraph{Chi phí.}
+Phân loại toàn bộ bàn chơi tại thời điểm $t$ cần $1 + 2|U_t|$ lời gọi bộ giải,
+mỗi lời gọi dựng lại $\mathit{KB}_t$ và chạy DPLL trên đó. Số lời gọi tăng tuyến
+tính theo số ô chưa chứng minh, nhưng chi phí mỗi lời gọi phụ thuộc kích thước
+$\mathit{KB}_t$, vốn tăng dần khi lời khai được lật. Đây là lý do
+\texttt{next\_move} dừng ngay ở ô đầu tiên chứng minh được thay vì phân loại hết
+bàn chơi như \texttt{classify\_all}.
+
+\paragraph{Tính đúng đắn.}
+Hai tính chất của phép phân loại là cơ sở cho luật không đoán.
+\emph{Đúng đắn}: một ô chỉ nhận nhãn \texttt{CRIMINAL} hoặc \texttt{INNOCENT}
+khi trạng thái ngược lại bị $\mathit{KB}_t$ bác bỏ, nên nhãn đó đúng với mọi
+cấu hình phù hợp với thông tin công khai, trong đó có $\sigma^\star$. Tác nhân
+vì vậy không bao giờ nộp một phán quyết sai, miễn là bộ giải trả lời đúng.
+\emph{Đầy đủ}: nếu $\mathit{KB}_t \models x_i$ hoặc
+$\mathit{KB}_t \models \neg x_i$ thì truy vấn tương ứng chắc chắn không thỏa
+được, và DPLL là thủ tục quyết định đầy đủ, nên tác nhân không bỏ sót ô nào
+suy ra được. Hệ quả là nhãn \texttt{UNKNOWN} cho mọi ô chưa chứng minh mang
+đúng nghĩa ``thông tin công khai hiện tại không đủ'', chứ không phải ``tác nhân
+không tìm ra''.
+\end{sloppypar}

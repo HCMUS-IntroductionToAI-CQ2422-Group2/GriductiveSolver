@@ -37,6 +37,73 @@ dùng ở mức gợi ý hoàn thành mã; mọi đoạn mã được thành vi�
 chỉnh sửa và kiểm thử trước khi commit. Thay đổi mã nguồn do Claude Code đề
 xuất được gửi dưới dạng pull request và được nhóm xem xét trước khi gộp.
 
+\paragraph{Ví dụ câu lệnh đã dùng.}
+Bảng~\ref{tab:ai_prompts} trích một số câu lệnh tiêu biểu mà nhóm đã gửi cho
+Claude Code trong quá trình làm đồ án, kèm kết quả và cách nhóm xử lý kết quả
+đó. Câu lệnh được giữ nguyên ý, chỉ sửa lỗi gõ và lược bớt phần không liên
+quan (đánh dấu ``\ldots''). Các câu lệnh cho thấy AI được giao việc ở mức cụ
+thể (một lỗi, một mục báo cáo, một bước kiểm tra), còn quyết định thiết kế và
+việc chấp nhận thay đổi do thành viên phụ trách thực hiện.
+
+\begin{table}[htbp]
+  \centering\small
+  \caption{Một số câu lệnh tiêu biểu đã dùng với Claude Code}
+  \label{tab:ai_prompts}
+  \begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{2.3cm}%
+      >{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}p{4cm}}
+    \toprule
+    \textbf{Mục đích} & \textbf{Câu lệnh} & \textbf{Kết quả và cách xử lý} \\
+    \midrule
+    Sửa lỗi bản đồ
+      & ``Nhóm trưởng bảo cả nhóm kiểm tra phần việc của mình về lỗi này:
+        \texttt{market\_3x3.py:73-76}, nhiều nhân vật không có clue riêng. Đề
+        yêu cầu mỗi nhân vật có một clue và mở clue sau khi phán quyết được
+        chấp nhận \ldots{} Cần bổ sung clue cho các thẻ còn thiếu và kiểm tra
+        điều kiện này trong validator. Bạn kiểm tra giúp tôi được không?''
+      & Đề xuất lời khai cho các ô còn thiếu và tùy chọn
+        \texttt{require\_clue\_\allowbreak per\_cell}; nhóm chạy lại
+        \texttt{validate\_puzzle} và kiểm thử trước khi gộp (PR \#23) \\
+    \addlinespace
+    Đối chiếu luật gốc
+      & ``Bạn có thể tham khảo trên web này
+        \nolinkurl{https://knotwise.games/games/griductive} trong quá trình làm,
+        đây là web game gốc chúng tôi mô phỏng lại.''
+      & Dùng làm nguồn đối chiếu luật chơi; luật được trích dẫn
+        \cite{griductive_rules} \\
+    \addlinespace
+    Rà soát bản đồ
+      & ``Xem phần việc của tôi gồm Check map Observatory 5x5 và Deductive
+        Logic Agent. Xem và cho tôi hướng giải quyết vấn đề.'' và tiếp theo
+        ``Tiếp tục đối chiếu từng clue của Observatory.''
+      & Bảng đối chiếu từng lời khai với ràng buộc hình thức; thành viên phụ
+        trách tự quyết định cách sửa \\
+    \addlinespace
+    Tránh xung đột
+      & ``Kiểm tra xem Minh đã tự làm CNF encoder chưa vì phần đó của Minh,
+        nếu làm sẽ bị xung đột.''
+      & Chỉ đọc lịch sử nhánh trên remote; không sửa mã của thành viên khác \\
+    \addlinespace
+    Biên tập báo cáo
+      & ``Bạn xem giúp tôi phần báo cáo được không? \ldots{} có vẻ đúng khung
+        sườn và trọng tâm nhưng cách hành văn còn thô, chưa giống một bài báo
+        cáo \ldots{} Tất cả sơ đồ được vẽ bằng LaTeX trong phần mô phỏng bài
+        toán, bạn vẽ lại bằng Mermaid vì tôi biên dịch bị lỗi khi xuất PDF.''
+      & Bản biên tập văn phong và sơ đồ Mermaid; người viết đọc lại từng đoạn
+        và sửa phần diễn đạt chưa đúng ý \\
+    \addlinespace
+    Kiểm tra biên dịch
+      & ``Cài TinyTeX rồi biên dịch thử bằng PDFLaTeX.''
+      & Danh sách lỗi và cảnh báo khi biên dịch; nhóm sửa trong mã LaTeX \\
+    \addlinespace
+    Nhận việc từ issue
+      & ``Kiểm tra công việc (issue) mới nhất trên remote, nhóm trưởng có phân
+        gì cho tôi không?'' và sau đó ``Bắt đầu làm.''
+      & Tóm tắt issue \#27 và bản nháp Mục~4.1, 4.4, 4.6; số liệu và trace
+        được sinh lại từ mã nguồn rồi đối chiếu trước khi mở PR \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
 \paragraph{Cách kiểm tra kết quả.}
 \begin{enumerate}
   \item Đối chiếu từng công thức, bảng số liệu và ví dụ với mã nguồn; các ví
