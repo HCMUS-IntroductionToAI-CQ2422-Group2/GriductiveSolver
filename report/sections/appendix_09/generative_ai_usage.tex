@@ -1,3 +1,115 @@
 \subsection{Công bố việc sử dụng Generative AI}
-% Note: Khai báo công cụ/mô hình, mục đích, prompt thực tế, phần đầu ra được dùng hoặc sửa và cách nhóm kiểm tra; ghi cả việc AI hỗ trợ lập khung báo cáo nếu sử dụng.
+\label{sec:genai_usage}
 
+Nhóm có sử dụng công cụ AI sinh tạo trong quá trình thực hiện đồ án. Phụ lục
+này khai báo công cụ đã dùng, phạm vi sử dụng và cách nhóm kiểm tra kết quả.
+Nhóm chịu trách nhiệm hoàn toàn về tính chính xác của mọi nội dung trong mã
+nguồn và báo cáo.
+
+\begin{table}[htbp]
+  \centering\small
+  \caption{Công cụ AI sinh tạo được sử dụng}
+  \label{tab:ai_tools}
+  \begin{tabularx}{\textwidth}{ll>{\raggedright\arraybackslash}X}
+    \toprule
+    \textbf{Công cụ} & \textbf{Nhà cung cấp} & \textbf{Phạm vi sử dụng} \\
+    \midrule
+    Antigravity (Gemini, Claude) & Google, Anthropic &
+      Dựng khung tệp \texttt{.tex}; chuyển mã nguồn thành giả mã; rà soát ký
+      hiệu toán học và lỗi LaTeX \\
+    Claude Code & Anthropic &
+      Bổ sung lời khai cho các ô còn thiếu trong sáu bản đồ và kiểm tra tương
+      ứng trong \texttt{validate\_puzzle}; đối chiếu báo cáo với mã nguồn; chạy
+      lại benchmark; vẽ lại sơ đồ bằng Mermaid; biên tập văn phong \\
+    GitHub Copilot & GitHub &
+      Gợi ý hoàn thành mã khi viết \texttt{cnf\_encoder.py},
+      \texttt{DPLL\_Solver.py} và các tệp kiểm thử \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\paragraph{Phạm vi sử dụng.}
+Nội dung kỹ thuật của báo cáo (mô hình hóa, phân tích thuật toán, nhận xét
+thực nghiệm) do nhóm xây dựng dựa trên mã nguồn của dự án. AI được dùng để dựng
+khung, định dạng lại giả mã theo quy ước \texttt{algorithmic}, biên tập văn
+phong và rà soát tính nhất quán giữa báo cáo với mã nguồn. Copilot chỉ được
+dùng ở mức gợi ý hoàn thành mã; mọi đoạn mã được thành viên phụ trách đọc,
+chỉnh sửa và kiểm thử trước khi commit. Thay đổi mã nguồn do Claude Code đề
+xuất được gửi dưới dạng pull request và được nhóm xem xét trước khi gộp.
+
+\paragraph{Ví dụ câu lệnh đã dùng.}
+Bảng~\ref{tab:ai_prompts} trích một số câu lệnh tiêu biểu mà nhóm đã gửi cho
+Claude Code trong quá trình làm đồ án, kèm kết quả và cách nhóm xử lý kết quả
+đó. Câu lệnh được giữ nguyên ý, chỉ sửa lỗi gõ và lược bớt phần không liên
+quan (đánh dấu ``\ldots''). Các câu lệnh cho thấy AI được giao việc ở mức cụ
+thể (một lỗi, một mục báo cáo, một bước kiểm tra), còn quyết định thiết kế và
+việc chấp nhận thay đổi do thành viên phụ trách thực hiện.
+
+\begin{table}[htbp]
+  \centering\small
+  \caption{Một số câu lệnh tiêu biểu đã dùng với Claude Code}
+  \label{tab:ai_prompts}
+  \begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{2.3cm}%
+      >{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}p{4cm}}
+    \toprule
+    \textbf{Mục đích} & \textbf{Câu lệnh} & \textbf{Kết quả và cách xử lý} \\
+    \midrule
+    Sửa lỗi bản đồ
+      & ``Nhóm trưởng bảo cả nhóm kiểm tra phần việc của mình về lỗi này:
+        \texttt{market\_3x3.py:73-76}, nhiều nhân vật không có clue riêng. Đề
+        yêu cầu mỗi nhân vật có một clue và mở clue sau khi phán quyết được
+        chấp nhận \ldots{} Cần bổ sung clue cho các thẻ còn thiếu và kiểm tra
+        điều kiện này trong validator. Bạn kiểm tra giúp tôi được không?''
+      & Đề xuất lời khai cho các ô còn thiếu và tùy chọn
+        \texttt{require\_clue\_\allowbreak per\_cell}; nhóm chạy lại
+        \texttt{validate\_puzzle} và kiểm thử trước khi gộp (PR \#23) \\
+    \addlinespace
+    Đối chiếu luật gốc
+      & ``Bạn có thể tham khảo trên web này
+        \nolinkurl{https://knotwise.games/games/griductive} trong quá trình làm,
+        đây là web game gốc chúng tôi mô phỏng lại.''
+      & Dùng làm nguồn đối chiếu luật chơi; luật được trích dẫn
+        \cite{griductive_rules} \\
+    \addlinespace
+    Rà soát bản đồ
+      & ``Xem phần việc của tôi gồm Check map Observatory 5x5 và Deductive
+        Logic Agent. Xem và cho tôi hướng giải quyết vấn đề.'' và tiếp theo
+        ``Tiếp tục đối chiếu từng clue của Observatory.''
+      & Bảng đối chiếu từng lời khai với ràng buộc hình thức; thành viên phụ
+        trách tự quyết định cách sửa \\
+    \addlinespace
+    Tránh xung đột
+      & ``Kiểm tra xem Minh đã tự làm CNF encoder chưa vì phần đó của Minh,
+        nếu làm sẽ bị xung đột.''
+      & Chỉ đọc lịch sử nhánh trên remote; không sửa mã của thành viên khác \\
+    \addlinespace
+    Biên tập báo cáo
+      & ``Bạn xem giúp tôi phần báo cáo được không? \ldots{} có vẻ đúng khung
+        sườn và trọng tâm nhưng cách hành văn còn thô, chưa giống một bài báo
+        cáo \ldots{} Tất cả sơ đồ được vẽ bằng LaTeX trong phần mô phỏng bài
+        toán, bạn vẽ lại bằng Mermaid vì tôi biên dịch bị lỗi khi xuất PDF.''
+      & Bản biên tập văn phong và sơ đồ Mermaid; người viết đọc lại từng đoạn
+        và sửa phần diễn đạt chưa đúng ý \\
+    \addlinespace
+    Kiểm tra biên dịch
+      & ``Cài TinyTeX rồi biên dịch thử bằng PDFLaTeX.''
+      & Danh sách lỗi và cảnh báo khi biên dịch; nhóm sửa trong mã LaTeX \\
+    \addlinespace
+    Nhận việc từ issue
+      & ``Kiểm tra công việc (issue) mới nhất trên remote, nhóm trưởng có phân
+        gì cho tôi không?'' và sau đó ``Bắt đầu làm.''
+      & Tóm tắt issue \#27 và bản nháp Mục~4.1, 4.4, 4.6; số liệu và trace
+        được sinh lại từ mã nguồn rồi đối chiếu trước khi mở PR \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\paragraph{Cách kiểm tra kết quả.}
+\begin{enumerate}
+  \item Đối chiếu từng công thức, bảng số liệu và ví dụ với mã nguồn; các ví
+    dụ JSON trong Phụ lục~\ref{sec:api_pseudocode} và đặc tả bản đồ trong
+    Phụ lục~\ref{sec:map_specifications} được sinh từ chính hệ thống.
+  \item Chạy lại toàn bộ bộ kiểm thử sau mỗi thay đổi mã nguồn.
+  \item Đọc chéo báo cáo theo cặp trước khi nộp để phát hiện phát biểu sai
+    hoặc không khớp với cài đặt.
+\end{enumerate}

@@ -1,0 +1,16 @@
+%%{init: {"theme": "neutral", "flowchart": {"curve": "basis", "nodeSpacing": 30, "rankSpacing": 38}, "themeVariables": {"fontSize": "15px"}}}%%
+flowchart TD
+    S0(["Khởi tạo: P<sub>0</sub> = initial_verdicts<br/>R<sub>0</sub> = lời khai của nhân vật khởi đầu"])
+    KB["Lập KB<sub>t</sub> từ R<sub>t</sub> và P<sub>t</sub>"]
+    PICK["Người chơi hoặc tác nhân<br/>đề xuất phán quyết ⟨i, s⟩"]
+    ENT{"KB<sub>t</sub> ⊨ (x<sub>i</sub> = s) ?"}
+    UPD["P<sub>t+1</sub> = P<sub>t</sub> ∪ {(i, s)}<br/>R<sub>t+1</sub> = R<sub>t</sub> ∪ lời khai của ô i"]
+    REJ["Từ chối phán quyết<br/>KB<sub>t</sub> giữ nguyên"]
+    DONE{"Mọi ô đã<br/>được chứng minh?"}
+    END(["Kết thúc ván"])
+
+    S0 --> KB --> PICK --> ENT
+    ENT -- "Có: ACCEPTED" --> UPD --> DONE
+    ENT -- "Không: NOT_PROVABLE,<br/>CONTRADICTED, INCONSISTENT" --> REJ --> PICK
+    DONE -- "Chưa" --> KB
+    DONE -- "Rồi" --> END

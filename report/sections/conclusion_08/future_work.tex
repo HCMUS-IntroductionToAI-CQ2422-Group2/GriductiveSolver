@@ -1,3 +1,45 @@
 \subsection{Hướng phát triển}
-% Note: Đề xuất cải tiến gắn với hạn chế đã quan sát, chẳng hạn mã hóa cardinality, tối ưu solver, giải thích suy luận hoặc mở rộng map.
+\label{sec:future_work}
 
+Các hướng dưới đây xuất phát từ giới hạn quan sát được trong thực nghiệm, xếp
+theo mức ảnh hưởng tới hệ thống hiện tại.
+
+\begin{sloppypar}
+\paragraph{Mã hóa ràng buộc đếm gọn hơn.}
+Benchmark cho thấy chi phí giải tăng nhanh nhất theo kích thước $\mathit{KB}$,
+và phần lớn mệnh đề đến từ mã hóa tổ hợp của \texttt{CountConstraint}, vốn sinh
+$\binom{m}{k+1}$ mệnh đề cho một ràng buộc ``nhiều nhất $k$''. Các mã hóa dùng
+biến phụ trợ như sequential counter \cite{sinz2005} cần $O(mk)$ mệnh đề, còn
+totalizer \cite{bailleux2003} và sorting network \cite{batcher1968} cần
+$O(m \log^2 m)$ đến $O(m^2)$ mệnh đề, đồng thời vẫn giữ khả năng lan truyền đơn
+vị. Đây là thay đổi có lợi nhất nếu mở rộng lên lưới $6\times6$ trở lên.
+\end{sloppypar}
+
+\paragraph{Bộ giải CDCL và giải tăng dần.}
+Bộ giải hiện tại quay lui theo thứ tự thời gian và dựng lại $\mathit{KB}_t$ từ
+đầu ở mỗi truy vấn. Thuật toán CDCL \cite{marques1999grasp} học mệnh đề từ xung
+đột và quay lui không theo thứ tự thời gian, giảm số lần phân nhánh trên các
+bản đồ có ràng buộc toàn cục như \texttt{ConnectedConstraint}. Vì
+$\mathit{KB}_{t+1}$ chỉ thêm mệnh đề vào $\mathit{KB}_t$
+(Mục~\ref{sec:reveal_protocol}), một bộ giải tăng dần có thể giữ lại mệnh đề
+đã mã hóa và mệnh đề đã học giữa các truy vấn thay vì bắt đầu lại.
+
+\paragraph{Sinh bản đồ tự động.}
+Sáu bản đồ hiện được thiết kế thủ công. Một bộ sinh tự động có thể chọn ngẫu
+nhiên lời giải, sinh lời khai đúng với lời giải cho từng ô, rồi dùng
+\texttt{validate\_puzzle} để giữ lại bản đồ có nghiệm duy nhất và không cần
+đoán. Số sóng suy luận và tập dạng ràng buộc được phép dùng là hai tham số tự
+nhiên để điều khiển độ khó.
+
+\paragraph{Giải thích suy luận bằng ngôn ngữ tự nhiên.}
+\texttt{DeductiveAgent} đã ghi lại, cho mỗi bước, các truy vấn SAT và lời khai
+đang có hiệu lực. Bước tiếp theo là rút ra tập lời khai tối thiểu đủ để bác bỏ
+trạng thái ngược lại, chẳng hạn bằng lõi không thỏa được (unsatisfiable core),
+rồi diễn đạt nó thành câu giải thích cho người chơi.
+
+\paragraph{Mở rộng dạng ràng buộc.}
+Các dạng lời khai khác của trò chơi gốc, như ``người ở giữa hai người'', ``hàng
+xóm chung'' hay ``nhiều nhất'' \cite{griductive_rules}, đều quy được về các
+ràng buộc đếm trên một tập đích tính từ bàn chơi. Mỗi dạng mới chỉ cần một lớp
+trong \texttt{constraints.py} và một hàm mã hóa trong \texttt{CNFEncoder}, không
+cần thay đổi Game Engine.

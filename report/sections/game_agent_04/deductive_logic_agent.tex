@@ -1,3 +1,159 @@
 \subsection{Deductive Logic Agent và deduction loop}
-% Note: Trình bày giả mã suy luận, submit verdict, mở clue, cập nhật KB; điều kiện Solved/Stuck/Inconsistent và một trace suy luận từ thông tin công khai.
+\label{sec:deductive_agent}
+\begin{sloppypar}
 
+Mục này mô tả \texttt{DeductiveAgent.solve}, vòng lặp đưa tác nhân từ trạng
+thái khởi đầu tới khi ván kết thúc. Mỗi vòng lặp là một lượt của đường ống ở
+Mục~\ref{sec:agent_pipeline}: tìm một phán quyết chứng minh được, nộp nó qua
+Game Engine, nhận lời khai mới và lặp lại trên $\mathit{KB}$ lớn hơn.
+
+\paragraph{Vòng lặp suy luận.}
+Thuật toán~\ref{alg:deduction_loop} trình bày vòng lặp theo đúng cài đặt.
+Hàm con \textsc{NextMove} là \texttt{next\_move}: kiểm tra $\mathit{KB}_t$ nhất
+quán, rồi duyệt các ô chưa chứng minh theo thứ tự định danh và trả về phán
+quyết của ô đầu tiên có nhãn \texttt{CRIMINAL} hoặc \texttt{INNOCENT}
+(Mục~\ref{sec:entailment_classification}).
+
+\begin{algorithm}[htbp]
+  \caption{Vòng lặp suy luận \texttt{DeductiveAgent.solve}}
+  \label{alg:deduction_loop}
+  \begin{algorithmic}[1]
+    \Require Game Engine $E$ đã nạp bản đồ; bộ kiểm tra \textsc{HasSolution}
+    \Ensure Trạng thái dừng, ảnh chụp công khai cuối cùng và trace
+    \State $\mathit{trace} \gets [\,]$;\quad $S \gets E.\textsc{GetPublicState}()$
+    \Loop
+      \State $(\mathit{status}, v, Q) \gets \textsc{NextMove}(S)$
+        \Comment{$v = \langle i, s\rangle$ hoặc rỗng; $Q$: các truy vấn đã hỏi}
+      \If{$v$ rỗng}
+        \If{$\mathit{status} = \texttt{UNKNOWN}$}
+          \State \Return $(\texttt{STUCK}, S, \mathit{trace})$
+        \EndIf
+        \State \Return $(\mathit{status}, S, \mathit{trace})$
+          \Comment{\texttt{SOLVED} hoặc \texttt{INCONSISTENT}}
+      \EndIf
+      \State $r \gets E.\textsc{SubmitVerdict}(i, s)$
+      \If{$r.\mathit{outcome} \ne \texttt{ACCEPTED}$}
+        \State \textbf{raise} \texttt{MoveRejected}$(v, r.\mathit{outcome})$
+      \EndIf
+      \State $A \gets$ định danh các lời khai trong $S$
+      \State $N \gets$ định danh các lời khai trong $r.\mathit{state}$ không thuộc $A$
+      \State thêm $\textsc{Step}(|\mathit{trace}|+1,\ v,\ Q,\ A,\ N)$ vào $\mathit{trace}$
+      \State $S \gets r.\mathit{state}$
+    \EndLoop
+  \end{algorithmic}
+\end{algorithm}
+
+\paragraph{Gửi verdict và cập nhật $\mathit{KB}$.}
+Tác nhân không tự sửa trạng thái ván chơi. Nó chỉ gọi
+\texttt{submit\_verdict(i, s)}, và Game Engine tự kiểm tra lại phán quyết bằng
+hai truy vấn của mình (Mục~\ref{sec:verdict_acceptance}). Khi kết quả là
+\texttt{ACCEPTED}, engine ghi $\langle i, s\rangle$ vào
+\texttt{proved\_statuses} và lật mọi lời khai do ô $i$ sở hữu theo
+\eqref{eq:reveal}, rồi trả về ảnh chụp công khai mới. Tác nhân dùng ảnh chụp
+này làm đầu vào cho vòng kế tiếp. Vì \texttt{DPLLChecker} dựng lại CNF từ
+ảnh chụp ở mỗi lần gọi, việc ``cập nhật $\mathit{KB}$'' không cần thao tác
+riêng: $\mathit{KB}_{t+1}$ tự động gồm mệnh đề đơn vị của phán quyết vừa được
+chấp nhận và các mệnh đề của lời khai vừa lật. Theo Mục~\ref{sec:reveal_protocol},
+$\mathit{KB}_{t+1}$ chỉ thêm mệnh đề so với $\mathit{KB}_t$, nên ô nào đã suy ra
+được ở vòng trước vẫn suy ra được ở vòng sau.
+
+Nếu engine từ chối, tác nhân ném ngoại lệ \texttt{MoveRejected} kèm phán quyết
+và kết quả. Trường hợp này chỉ xảy ra khi tác nhân và engine dùng hai bộ kiểm
+tra cho kết quả khác nhau, tức là có lỗi cài đặt. Vì vậy tác nhân dừng hẳn
+thay vì bỏ qua và thử ô khác; API chuyển ngoại lệ này thành mã lỗi HTTP $409$.
+
+\paragraph{Ba trạng thái dừng.}
+Vòng lặp kết thúc ở một trong ba trạng thái của kiểu \texttt{SolveStatus}:
+\begin{itemize}
+  \item \texttt{SOLVED}: mọi ô đã được chứng minh. \textsc{NextMove} xác nhận
+    $\mathit{KB}_t$ nhất quán, thấy $U_t$ rỗng và trả trạng thái này. Vì mỗi
+    phán quyết được chấp nhận đều là hệ quả của $\mathit{KB}_t$, cấu hình cuối
+    cùng chính là $\sigma^\star$ dù tác nhân không bao giờ đọc $\sigma^\star$.
+  \item \texttt{STUCK}: $\mathit{KB}_t$ nhất quán, còn ô chưa chứng minh nhưng
+    mọi ô đều có nhãn \texttt{UNKNOWN}. Tác nhân dừng thay vì đoán, đúng với
+    luật không đoán. Trạng thái này cho biết bản đồ vi phạm điều kiện mà
+    \texttt{\_check\_solvable\_without\_guessing} kiểm tra
+    (Mục~\ref{sec:uniqueness_checking}), nên không xảy ra trên sáu bản đồ đã
+    được kiểm chứng.
+  \item \texttt{INCONSISTENT}: $\mathit{KB}_t$ không thỏa được. Bản đồ đã kiểm
+    chứng có $\sigma^\star$ thỏa mọi lời khai nên cũng không rơi vào trạng thái
+    này; nó tồn tại để tác nhân báo lỗi rõ ràng khi được dùng trên một bản đồ
+    hỏng. Ca kiểm thử
+    \texttt{test\_classify\_all\_\allowbreak returns\_\allowbreak inconsistent\_\allowbreak on\_unsat\_kb} dựng
+    một $\mathit{KB}$ mâu thuẫn và xác nhận tác nhân trả về đúng trạng thái
+    này.
+\end{itemize}
+Vòng lặp luôn dừng: mỗi vòng không dừng thêm đúng một ô vào $\mathcal{P}_t$,
+nên có tối đa $|\mathcal{C}| - |\mathcal{P}_0|$ vòng nộp phán quyết, cộng một
+lần gọi \textsc{NextMove} cuối cùng. Mỗi lần gọi \textsc{NextMove} tốn tối đa
+$1 + 2|U_t|$ truy vấn, nên tổng số truy vấn của tác nhân là $O(|\mathcal{C}|^2)$
+trong trường hợp xấu nhất. Trên thực tế con số này nhỏ hơn nhiều vì
+\textsc{NextMove} dừng ở ô đầu tiên chứng minh được.
+
+\paragraph{Vết suy luận.}
+Mỗi phán quyết được chấp nhận sinh một bản ghi \texttt{Step} gồm số thứ tự,
+phán quyết, danh sách \texttt{Query} (giả thiết và kết quả thỏa được) mà
+\textsc{NextMove} đã hỏi, các lời khai đang mở khi suy luận
+(\texttt{active\_clue\_ids}) và các lời khai vừa được lật
+(\texttt{revealed\_clue\_ids}). Trace chỉ chứa thông tin công khai, nên mỗi
+bước có thể được người đọc kiểm tra lại chỉ bằng các lời khai đã mở. Endpoint
+\texttt{POST /api/game/auto-solve} trả về trace này, và giao diện dùng nó để
+phát lại từng bước.
+
+Bảng~\ref{tab:market_trace} là trace đầy đủ của tác nhân trên bản đồ Khu chợ
+$3\times3$, sinh bằng \texttt{DPLLChecker}. Ván bắt đầu với An (ô~$0$, A1) vô
+tội và lời khai của An đã mở. Vì mỗi nhân vật giữ đúng một lời khai, phán quyết
+được chấp nhận ở mỗi bước luôn lật lời khai của chính nhân vật đó; cột
+\emph{Mở} đếm số lời khai dùng được \emph{trước} khi phán quyết được nộp. Cột
+\emph{Truy vấn} đếm cả truy vấn kiểm tra nhất quán, còn cột \emph{Lý do} diễn
+giải bằng lời phép suy ra mà truy vấn bác bỏ xác nhận, gọi lời khai theo tên
+người nói. Nội dung các lời khai được liệt kê trong
+Phụ lục~\ref{sec:map_specifications}.
+
+\begin{table}[htbp]
+  \centering\small
+  \caption{Trace suy luận của \texttt{DeductiveAgent} trên bản đồ Khu chợ}
+  \label{tab:market_trace}
+  \begin{tabularx}{\textwidth}{clcc>{\raggedright\arraybackslash}X}
+    \toprule
+    \textbf{Bước} & \textbf{Phán quyết} & \textbf{Truy vấn} & \textbf{Mở}
+      & \textbf{Lý do} \\
+    \midrule
+    1 & Chi (C1) vô tội     & 5 & 1
+      & Bình (ô~1) còn \texttt{UNKNOWN}; An nói Chi vô tội \\
+    2 & Dũng (A2) vô tội    & 5 & 2
+      & Bình còn \texttt{UNKNOWN}; An nói Dũng vô tội \\
+    3 & Bình (B1) tội phạm  & 3 & 3
+      & Dũng: hàng 1 có đúng một tội phạm, mà An và Chi vô tội \\
+    4 & Giang (B2) tội phạm & 3 & 4
+      & Dũng: Giang cùng trạng thái với Bình \\
+    5 & Hà (C2) vô tội      & 3 & 5
+      & Chi nói Hà vô tội \\
+    6 & Hùng (A3) tội phạm  & 3 & 6
+      & Chi: Lan khác Hà nên Lan là tội phạm; Giang: bốn góc có số tội phạm
+        chẵn, A1 và C1 vô tội, nên Hùng cũng là tội phạm \\
+    7 & Khoa (B3) vô tội    & 3 & 7
+      & Bình nói Khoa vô tội \\
+    8 & Lan (C3) tội phạm   & 3 & 8
+      & Chi: Lan khác Hà, mà Hà vô tội \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+Có thể đọc ra ba đặc điểm của vòng lặp từ bảng này. Thứ nhất, ở bước~1 và~2,
+tác nhân phải hỏi về ô~$1$ trước (hai truy vấn đều thỏa được) rồi mới tới ô
+chứng minh được, nên mỗi bước tốn $5$ truy vấn; từ bước~3 trở đi ô có định danh
+nhỏ nhất luôn chứng minh được ngay, nên mỗi bước chỉ tốn $3$ truy vấn. Cộng
+thêm truy vấn nhất quán cuối cùng xác nhận \texttt{SOLVED}, tác nhân gọi bộ
+giải $5+5+6\cdot3+1 = 29$ lần, khớp với số liệu benchmark
+(Bảng~\ref{tab:benchmark_raw}). Thứ hai, thứ tự định danh không trùng với thứ
+tự sóng suy luận. Lan (ô~$8$) đã suy ra được từ bước~2, ngay sau khi lời khai của
+Chi được lật, nhưng chỉ được nộp ở bước cuối vì có định danh lớn nhất; ở bước~6,
+suy luận về Hùng phải đi qua chính trạng thái của Lan dù Lan chưa được nộp.
+Thứ ba, Bình là ô duy nhất cần đến lời khai đếm: An và Chi đều vô tội, nên
+``hàng 1 có đúng một tội phạm'' ép Bình là tội phạm, và truy vấn
+$\mathrm{SAT}(\mathit{KB}_2 \land \neg x_1)$ bị lan truyền đơn vị bác bỏ ngay
+mà không cần phân nhánh. Toàn bộ $45$ lần gọi bộ giải trên bản đồ này đều được
+giải chỉ bằng lan truyền đơn vị, khớp với cột phân nhánh bằng $0$ trong
+Bảng~\ref{tab:benchmark_raw}.
+\end{sloppypar}

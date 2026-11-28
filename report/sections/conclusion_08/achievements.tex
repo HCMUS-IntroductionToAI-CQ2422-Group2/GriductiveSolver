@@ -1,3 +1,45 @@
 \subsection{Kết quả đạt được so với mục tiêu}
-% Note: Tổng hợp kết quả đã được kiểm chứng của Engine, Agent, UI/API, 6 map và benchmark; nêu phần chưa hoàn tất nếu có.
+\label{sec:achievements}
 
+Đồ án đặt ra ba mục tiêu: (i) một Game Engine hiện thực đúng luật Griductive,
+(ii) một tác nhân tự giải bằng suy luận logic mà không đoán, và (iii) một giao
+diện cùng API cho phép chơi và quan sát quá trình suy luận. Cả ba mục tiêu đã
+được hoàn thành. Mục này đối chiếu từng mục tiêu với bằng chứng tương ứng.
+
+\paragraph{Game Engine.}
+\texttt{GameEngine} chỉ chấp nhận phán quyết khi nó là hệ quả của
+$\mathit{KB}_t$ (Mục~\ref{sec:verdict_acceptance}), lật lời khai ngay khi phán
+quyết được chấp nhận (Mục~\ref{sec:reveal_protocol}), và phân biệt sáu kết quả
+nộp phán quyết, kể cả trường hợp tri thức công khai mâu thuẫn. Trạng thái công
+khai được trao ra ngoài dưới dạng ảnh chụp chỉ đọc, nên tác nhân và giao diện
+không thể đọc lời khai ẩn hay sửa trạng thái nội bộ.
+
+\paragraph{Mã hóa CNF và tác nhân suy luận.}
+\texttt{CNFEncoder} mã hóa cả bảy dạng ràng buộc, gồm ràng buộc chẵn lẻ bằng
+chuỗi biến phụ trợ và ràng buộc liên thông bằng lan truyền khả đạt
+(Mục~\ref{sec:clue_semantics}). Bộ giải DPLL \cite{davis1962dpll} được nhóm tự
+cài đặt với lan truyền đơn vị và phân nhánh theo biến có chỉ số nhỏ nhất.
+\texttt{DeductiveAgent} hỏi bộ giải hai câu cho mỗi ô chưa chứng minh và chỉ
+nộp phán quyết khi đúng một trạng thái còn khả dĩ. Trên cả sáu bản đồ, tác nhân
+giải trọn ván mà không có phán quyết nào bị từ chối; bản đồ khó nhất được giải
+trong khoảng $0{,}77$ giây (Bảng~\ref{tab:benchmark_raw}).
+
+\paragraph{Bộ sáu bản đồ.}
+Nhóm thiết kế sáu bản đồ nguyên bản, từ $3\times3$ đến $5\times5$, cần từ $3$
+đến $8$ sóng suy luận. Hàm \texttt{validate\_puzzle} xác nhận mỗi bản đồ có
+nghiệm duy nhất, giải được mà không cần đoán, bắt đầu từ đúng một nhân vật vô
+tội và gán đúng một lời khai cho mỗi ô.
+
+\paragraph{Giao diện và API.}
+Backend FastAPI cung cấp bảy endpoint (Bảng~\ref{tab:api_endpoints}), tài liệu
+Swagger tại \nolinkurl{/docs} và giao diện web tại \nolinkurl{/app/}. Giao diện hỗ
+trợ phát lại từng bước suy luận, hiển thị lời khai bên cạnh bàn chơi, phản hồi
+phán quyết tại chỗ và tạm dừng ván. Hợp đồng API được mô tả trong
+\texttt{FrontEnd/API\_CONTRACT.md} và được kiểm thử tự động.
+
+\paragraph{Kiểm thử.}
+Bộ kiểm thử gồm $172$ ca trong $12$ module, bao phủ từ ngữ nghĩa từng ràng
+buộc, bộ mã hóa CNF và bộ giải đến các ván chơi đầy đủ qua API
+(Bảng~\ref{tab:test_results}). Ngữ nghĩa ràng buộc được kiểm tra trên cả bộ
+kiểm tra quay lui \texttt{BruteForceChecker} lẫn mã hóa CNF, với mã hóa CNF
+được đối chiếu với bảng chân trị.

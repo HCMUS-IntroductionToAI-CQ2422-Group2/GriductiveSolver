@@ -1,3 +1,60 @@
 \subsection{Biến mệnh đề và quy ước ký hiệu}
-% Note: Định nghĩa biến cho từng ô, giá trị đúng/sai, literal và cách ánh xạ ID ô sang biến SAT.
+\label{sec:prop_vars}
 
+Để đưa bài toán về logic mệnh đề, mỗi ô $i \in \mathcal{C}$ được gắn một biến
+mệnh đề $x_i$ với ngữ nghĩa
+\begin{equation}
+  x_i = \top \iff \text{nhân vật tại ô } i \text{ là tội phạm}.
+  \label{eq:prop_var}
+\end{equation}
+Literal $x_i$ khẳng định ô $i$ là tội phạm, literal $\neg x_i$ khẳng định ô $i$
+vô tội. Một phép gán đầy đủ cho $\{x_i\}_{i\in\mathcal{C}}$ tương ứng một-một
+với một cấu hình tội trạng của bàn chơi.
+
+\paragraph{Đánh số biến cho bộ giải SAT.}
+Bộ mã hóa \texttt{CNFEncoder} biểu diễn literal theo quy ước DIMACS: biến là
+số nguyên dương, literal âm là phủ định. Các định danh ô được sắp tăng dần rồi
+đánh số từ $1$:
+\begin{equation}
+  v(i) = \bigl|\{\, j \in \mathcal{C} : j < i \,\}\bigr| + 1 .
+  \label{eq:dimacs_var}
+\end{equation}
+Vì định danh ô liên tiếp từ $0$ nên $v(i) = i + 1$ và
+$v(\mathcal{C}) = \{1, \ldots, |\mathcal{C}|\}$. Literal $+v(i)$ biểu diễn
+$x_i$, literal $-v(i)$ biểu diễn $\neg x_i$.
+
+\paragraph{Biến phụ trợ.}
+Hai dạng ràng buộc cần biến không gắn với ô nào. Bộ mã hóa cấp phát chúng từ
+bộ đếm \texttt{next\_variable}, khởi tạo bằng $|\mathcal{C}|+1$ và tăng sau mỗi
+lần cấp phát, nên biến phụ trợ không bao giờ trùng biến ô:
+\begin{itemize}
+  \item \texttt{ParityConstraint} trên $m$ literal dùng $m-1$ biến $p_k$ lưu
+    tổng XOR tiền tố;
+  \item \texttt{ConnectedConstraint} trên $m$ ô dùng $m^2$ biến khả đạt
+    $r_k^{(t)}$, với $m$ biến cho mỗi bước $t = 0, \ldots, m-1$.
+\end{itemize}
+Định nghĩa chi tiết của hai nhóm biến này nằm ở Mục~\ref{sec:clue_semantics}.
+Bảng~\ref{tab:ky_hieu} tổng hợp các ký hiệu dùng trong chương.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Ký hiệu dùng trong mô hình hóa bài toán}
+  \label{tab:ky_hieu}
+  \begin{tabularx}{\textwidth}{l>{\raggedright\arraybackslash}X}
+    \toprule
+    \textbf{Ký hiệu} & \textbf{Ý nghĩa} \\
+    \midrule
+    $H, W$                 & Số hàng và số cột của bàn chơi \\
+    $\mathcal{C}$          & Tập định danh ô, $|\mathcal{C}| = HW$ \\
+    $x_i$                  & Biến mệnh đề của ô $i$; $x_i=\top$ khi ô $i$ là tội phạm \\
+    $v(i)$                 & Chỉ số biến DIMACS của ô $i$ \\
+    $\sigma^\star$         & Lời giải khai báo của bản đồ \\
+    $\mathcal{K}$          & Tập toàn bộ lời khai (clue) của bản đồ \\
+    $\mathrm{src}(\gamma)$ & Ô sở hữu lời khai $\gamma \in \mathcal{K}$ \\
+    $\phi_\gamma$          & Tập mệnh đề CNF mã hóa ràng buộc của $\gamma$ \\
+    $\mathcal{R}_t$        & Tập lời khai đã lật mở sau $t$ phán quyết được chấp nhận \\
+    $\mathcal{P}_t$        & Tập phán quyết đã được chứng minh sau $t$ phán quyết \\
+    $\mathit{KB}_t$        & Cơ sở tri thức công khai tương ứng với $(\mathcal{R}_t, \mathcal{P}_t)$ \\
+    \bottomrule
+  \end{tabularx}
+\end{table}

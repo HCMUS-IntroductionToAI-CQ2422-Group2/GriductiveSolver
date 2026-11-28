@@ -1,0 +1,23 @@
+%%{init: {"theme": "neutral", "flowchart": {"curve": "basis", "nodeSpacing": 22, "rankSpacing": 36}, "themeVariables": {"fontSize": "15px"}}}%%
+flowchart TD
+    IN(["submit_verdict(i, s)"])
+    Q1{"i thuộc<br/>bàn chơi?"}
+    Q2{"i ∈ P<sub>t</sub> ?"}
+    SAT["a = SAT(KB<sub>t</sub> ∧ x<sub>i</sub> = s)<br/>b = SAT(KB<sub>t</sub> ∧ x<sub>i</sub> ≠ s)"]
+    Q3{"(a, b)"}
+    INV["INVALID_CELL"]
+    ALR["ALREADY_PROVED"]
+    NP["NOT_PROVABLE"]
+    CT["CONTRADICTED"]
+    IC["INCONSISTENT"]
+    AC["ACCEPTED<br/>ghi phán quyết, mở lời khai"]
+
+    IN --> Q1
+    Q1 -- "Không" --> INV
+    Q1 -- "Có" --> Q2
+    Q2 -- "Có" --> ALR
+    Q2 -- "Không" --> SAT --> Q3
+    Q3 -- "(1, 1)" --> NP
+    Q3 -- "(0, 1)" --> CT
+    Q3 -- "(0, 0)" --> IC
+    Q3 -- "(1, 0)" --> AC

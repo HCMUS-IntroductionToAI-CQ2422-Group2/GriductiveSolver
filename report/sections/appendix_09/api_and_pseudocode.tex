@@ -1,3 +1,180 @@
 \subsection{API specification và giả mã bổ sung}
-% Note: Đưa đặc tả API, ví dụ request/response và giả mã dài cần cho việc tái hiện nhưng không phù hợp đặt hết trong phần chính.
+\label{sec:api_pseudocode}
 
+Phụ lục này liệt kê các endpoint của backend, ví dụ trao đổi thực tế trên bản
+đồ Khu chợ, và giả mã của ba thành phần suy luận chính. Mọi ví dụ JSON được lấy
+từ phản hồi thật của API; phần bị lược bớt được đánh dấu \texttt{...}.
+
+\begin{sloppypar}
+\paragraph{Danh sách endpoint.}
+Backend FastAPI phục vụ bảy endpoint dưới tiền tố \nolinkurl{/api}
+(Bảng~\ref{tab:api_endpoints}). Ô không tồn tại và mã bản đồ không tồn tại trả
+HTTP~404; dữ liệu sai kiểu trả HTTP~422; nếu Game Engine từ chối một nước đi mà
+tác nhân cho là đã chứng minh, \texttt{auto-solve} trả HTTP~409.
+\end{sloppypar}
+
+\begin{table}[htbp]
+  \centering\small
+  \caption{Các endpoint của backend}
+  \label{tab:api_endpoints}
+  \begin{tabularx}{\textwidth}{ll>{\raggedright\arraybackslash}X}
+    \toprule
+    \textbf{Phương thức} & \textbf{Endpoint} & \textbf{Chức năng} \\
+    \midrule
+    GET  & \nolinkurl{/api/puzzles}        & Danh sách mã bản đồ theo thứ tự độ khó \\
+    POST & \nolinkurl{/api/game/load}      & Nạp bản đồ theo \texttt{puzzle\_id}; trả trạng thái công khai \\
+    GET  & \nolinkurl{/api/game}           & Trạng thái công khai của ván hiện tại \\
+    POST & \nolinkurl{/api/game/verdicts}  & Nộp phán quyết \texttt{\{cell\_id, is\_criminal\}}; trả \texttt{\{outcome, state\}} \\
+    POST & \nolinkurl{/api/game/restart}   & Đưa ván về trạng thái khởi đầu \\
+    GET  & \nolinkurl{/api/game/hint}      & Phán quyết kế tiếp đã chứng minh được, kèm các truy vấn SAT; không đổi trạng thái \\
+    POST & \nolinkurl{/api/game/auto-solve}& Chạy tác nhân đến khi giải xong hoặc bế tắc; trả \texttt{\{status, state, trace\}} \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\paragraph{Ví dụ: gợi ý ở đầu ván.}
+Ở trạng thái khởi đầu của Khu chợ chỉ có lời khai của An. Gọi
+\texttt{GET /api/game/hint} trả về:
+\begingroup\footnotesize
+\begin{verbatim}
+{ "status": "FOUND",
+  "verdict": { "cell_id": 2, "is_criminal": false },
+  "sat_queries": [ ... ] }
+\end{verbatim}
+\endgroup
+\noindent Trường \texttt{sat\_queries} ghi năm truy vấn mà tác nhân đã thực hiện
+(Bảng~\ref{tab:hint_queries}). Tác nhân kiểm tra các ô theo thứ tự định danh:
+ô~1 (Bình) còn cả hai khả năng nên bị bỏ qua; ô~2 (Chi) không thể là tội phạm,
+nên gợi ý là ``Chi vô tội''.
+
+\begin{table}[htbp]
+  \centering\small
+  \caption{Các truy vấn SAT trong phản hồi gợi ý ở đầu ván Khu chợ}
+  \label{tab:hint_queries}
+  \begin{tabular}{clc}
+    \toprule
+    \textbf{\#} & \textbf{Giả thiết} & \textbf{Thỏa được} \\
+    \midrule
+    1 & không có (kiểm tra $\mathit{KB}_0$ nhất quán) & có \\
+    2 & ô 1 là tội phạm  & có \\
+    3 & ô 1 vô tội       & có \\
+    4 & ô 2 là tội phạm  & không \\
+    5 & ô 2 vô tội       & có \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\paragraph{Ví dụ: nộp phán quyết.}
+Nộp ``Bình là tội phạm'' ở thời điểm này trả \texttt{NOT\_PROVABLE} dù đúng
+với đáp án, vì lời khai của An chưa nói gì về Bình. Nộp ``Dũng vô tội''
+(ô~3) được chấp nhận, và lời
+khai của Dũng xuất hiện trong \texttt{revealed\_clues}:
+\begingroup\footnotesize
+\begin{verbatim}
+{ "outcome": "ACCEPTED",
+  "state": {
+    "puzzle_id": "medium-3x3-market", "height": 3, "width": 3,
+    "cells": [
+      { "id": 0, "row": 0, "column": 0, "character_name": "An",
+        "profession": "Thợ mộc", "is_criminal": false },
+      { "id": 1, "row": 0, "column": 1, "character_name": "Bình",
+        "profession": "Bác sĩ", "is_criminal": null },
+      ... ],
+    "revealed_clues": [
+      { "id": 1, "source_cell_id": 0,
+        "referenced_cell_ids": [2, 3],
+        "description_nl": "Dũng (A2) và Chi (C1) đều vô tội." },
+      { "id": 2, "source_cell_id": 3,
+        "referenced_cell_ids": [0, 1, 2, 4],
+        "description_nl": "Hàng 1 có đúng một tội phạm. ..." } ],
+    "is_complete": false } }
+\end{verbatim}
+\endgroup
+
+\paragraph{Giả mã.}
+Thuật toán~\ref{alg:dpll} là bộ giải DPLL \cite{davis1962dpll} trong
+\texttt{DPLL\_Solver.py}. Thuật toán~\ref{alg:agent} là vòng lặp của
+\texttt{DeductiveAgent}. Thuật toán~\ref{alg:cardinality} là mã hóa ràng buộc
+đếm trong \texttt{cnf\_encoder.py}.
+
+\begin{algorithm}[htbp]
+  \caption{Bộ giải DPLL với lan truyền đơn vị}
+  \label{alg:dpll}
+  \begin{algorithmic}[1]
+    \Require Tập mệnh đề $F$, phép gán bộ phận $\alpha$
+    \Ensure Một mô hình của $F$ mở rộng $\alpha$, hoặc \textsc{Unsat}
+    \Function{DPLL}{$F, \alpha$}
+      \State $(F, \alpha) \gets \Call{UnitPropagate}{F, \alpha}$
+      \State \textbf{if} $\square \in F$ \textbf{then return} \textsc{Unsat}
+      \State \textbf{if} $F = \emptyset$ \textbf{then return} $\alpha$
+      \State $x \gets$ biến có chỉ số nhỏ nhất còn xuất hiện trong $F$
+      \For{$\ell \in (x, \neg x)$}
+        \State $\beta \gets \Call{DPLL}{F|_{\ell},\; \alpha \cup \{\ell\}}$
+        \State \textbf{if} $\beta \ne \textsc{Unsat}$ \textbf{then return} $\beta$
+      \EndFor
+      \State \Return \textsc{Unsat}
+    \EndFunction
+    \Statex
+    \Function{UnitPropagate}{$F, \alpha$}
+      \While{$F$ chứa mệnh đề đơn vị $(\ell)$}
+        \State \textbf{if} $\square \in F$ \textbf{then return} $(F, \alpha)$
+        \State $\alpha \gets \alpha \cup \{\ell\}$; \quad $F \gets F|_{\ell}$
+      \EndWhile
+      \State \Return $(F, \alpha)$
+    \EndFunction
+  \end{algorithmic}
+\end{algorithm}
+
+Ở đây $F|_{\ell}$ là phép rút gọn: xóa mọi mệnh đề chứa $\ell$ và xóa
+$\neg\ell$ khỏi các mệnh đề còn lại; $\square$ là mệnh đề rỗng.
+
+\begin{algorithm}[htbp]
+  \caption{Vòng lặp của tác nhân suy luận}
+  \label{alg:agent}
+  \begin{algorithmic}[1]
+    \Require Game Engine $E$, bộ kiểm tra \textsc{Sat}
+    \Ensure Trạng thái kết thúc \textsc{Solved}, \textsc{Stuck} hoặc \textsc{Inconsistent}, kèm trace
+    \Function{NextMove}{$\mathit{KB}_t$}
+      \State \textbf{if} \textbf{not} $\textsc{Sat}(\mathit{KB}_t)$ \textbf{then return} \textsc{Inconsistent}
+      \For{mỗi ô $i$ chưa chứng minh, theo thứ tự định danh}
+        \State $a \gets \textsc{Sat}(\mathit{KB}_t \land x_i)$; \quad
+               $b \gets \textsc{Sat}(\mathit{KB}_t \land \neg x_i)$
+        \State \textbf{if} $a \ne b$ \textbf{then return} \textsc{Found}$\bigl(\langle i, a\rangle\bigr)$
+      \EndFor
+      \State \Return \textsc{Solved} \textbf{if} mọi ô đã chứng minh \textbf{else} \textsc{Unknown}
+    \EndFunction
+    \Statex
+    \Function{Solve}{$E$}
+      \State $\mathit{trace} \gets [\,]$
+      \Loop
+        \State $m \gets \Call{NextMove}{E.\mathrm{publicState}()}$
+        \State \textbf{if} $m$ không có phán quyết \textbf{then return} $(m.\mathrm{status}, \mathit{trace})$
+        \State $r \gets E.\mathrm{submit}(m.\mathrm{verdict})$
+        \State \textbf{if} $r \ne \texttt{ACCEPTED}$ \textbf{then raise} \textsc{MoveRejected}
+        \State thêm $(m.\mathrm{verdict}, m.\mathrm{queries})$ vào $\mathit{trace}$
+      \EndLoop
+    \EndFunction
+  \end{algorithmic}
+\end{algorithm}
+
+Trong \textsc{Solve}, trạng thái \textsc{Unknown} của \textsc{NextMove} được
+báo ra ngoài là \textsc{Stuck}.
+
+\begin{algorithm}[htbp]
+  \caption{Mã hóa tổ hợp ràng buộc đếm}
+  \label{alg:cardinality}
+  \begin{algorithmic}[1]
+    \Require Danh sách literal $L$ với $n = |L|$, ngưỡng $k$
+    \Function{AtLeast}{$L, k$}
+      \State \textbf{if} $k \le 0$ \textbf{then return} $\emptyset$
+      \State \textbf{if} $k > n$ \textbf{then return} $\{\square\}$
+      \State \Return $\bigl\{\, \bigvee_{\ell \in S} \ell \;:\; S \subseteq L,\ |S| = n-k+1 \,\bigr\}$
+    \EndFunction
+    \Statex
+    \Function{AtMost}{$L, k$}
+      \State \textbf{if} $k < 0$ \textbf{then return} $\{\square\}$
+      \State \textbf{if} $k \ge n$ \textbf{then return} $\emptyset$
+      \State \Return $\bigl\{\, \bigvee_{\ell \in S} \neg\ell \;:\; S \subseteq L,\ |S| = k+1 \,\bigr\}$
+    \EndFunction
+  \end{algorithmic}
+\end{algorithm}

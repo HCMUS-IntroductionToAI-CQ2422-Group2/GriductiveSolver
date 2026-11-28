@@ -67,6 +67,14 @@ CLUES = (
             "Chi (C1) là tội phạm."
         ),
     ),
+    Clue(6, 2, CountConstraint(Count((0, 1, 2)), Comparison.EQ, 1),
+         "Hàng 1 có đúng một tội phạm."),
+    Clue(7, 5, CountConstraint(Count((3, 4, 5)), Comparison.EQ, 2),
+         "Hàng 2 có đúng hai tội phạm."),
+    Clue(8, 7, CountConstraint(Count((1, 4, 7)), Comparison.EQ, 1),
+         "Cột B có đúng một tội phạm."),
+    Clue(9, 8, CountConstraint(Count((6, 7, 8)), Comparison.EQ, 1),
+         "Hàng 3 có đúng một tội phạm."),
 )
 
 PUZZLE = PuzzleDefinition(
