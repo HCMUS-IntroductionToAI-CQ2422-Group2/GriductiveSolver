@@ -1,3 +1,100 @@
 \subsection{DPLL SAT Solver}
 % Note: Mô tả SAT/UNSAT, unit propagation, đơn giản hóa CNF, chọn biến, phân nhánh, quay lui; bổ sung giả mã và độ phức tạp đúng với cài đặt.
+Sau khi các ràng buộc của các ván chơi đã được ãm hóa sang dạng chuẩn hội CNF, nhóm sử dụng thuật toán Davis--Putnam--Logemann--Loveland (DPLL) để kiểm tra công thức có nghiệm hay không. 
+Trong cài đặt, mỗi literal được biểu diễn bằng một số nguyên có dấu. Chẳng hạn, \texttt{3} biểu diễn $x_3$ và \text{-3} biểu diễn $\neg x_3$. Mỗi mệnh đề là
+một bộ các literal, còn công thức CNF là một bộ các mệnh đề. Hàm \texttt{solve} nhận công thức CNF và số biến, sau đó trả về một phép gán đầy đủ nếu công thức thỏa hoặc \texttt{None} nếu công thức vô nghiệm.
 
+Ở mỗi nút tìm kiếm, bộ giải được thực hiện lan truyền đơn vị trước khi phân nhánh.
+Nếu một mệnh đề chỉ còn literal $\ell$, mọi nghiệm của công thức tại nút đó đều phải làm cho $\ell$ đúng. 
+Bộ giải ghi nhận phép gán này, bỏ các mệnh đề chứa $\ell$
+vì chúng đã được thỏa, rồi xóa $\neg\ell$ khỏi các mệnh đề còn lại.
+Quá trình được lặp lại vì một lần đơn giản hóa có thể tạo ra mệnh đề
+đơn vị mới. Nếu xuất hiện một mệnh đề rỗng, nhánh hiện tại vô nghiệm.
+Nếu công thức không còn mệnh đề nào, phép gán hiện tại đã thỏa toàn bộ
+các ràng buộc.
+Khi lan truyền đơn vị dừng mà công thức vẫn còn mệnh đề, cài đặt của
+nhóm chọn biến có chỉ số nhỏ nhất còn xuất hiện trong công thức.
+Bộ giải lần lượt thử giá trị \texttt{True} và \texttt{False}. Mỗi
+nhánh sử dụng một bản sao của phép gán hiện tại, nhờ đó các giá trị
+phát sinh ở nhánh thất bại không ảnh hưởng đến nhánh tiếp theo.
+Thuật toán~\ref{alg:dpll-search} mô tả hàm tìm kiếm đệ quy.
+
+\begin{algorithm}[htbp]
+    \caption{Tìm kiếm nghiệm bằng DPLL}
+    \label{alg:dpll-search}
+    \begin{algorithmic}[1]
+        \Require Công thức CNF $F$, phép gán hiện tại $A$
+        \Ensure Một phép gán thỏa mãn hoặc $\bot$ nếu vô nghiệm
+        \State $R \gets$ \Call{LanTruyenDonVi}{$F,A$}
+        \If{$R=\bot$}
+            \State \Return $\bot$
+        \EndIf
+        \State $(F,A) \gets R$
+        \If{$F$ không còn mệnh đề}
+            \State \Return $A$
+        \EndIf
+        \State $x \gets$ biến có chỉ số nhỏ nhất còn xuất hiện trong $F$
+        \For{$b$ lần lượt nhận giá trị $\mathrm{True},\mathrm{False}$}
+            \State $A' \gets$ bản sao của $A$ có bổ sung phép gán $x=b$
+            \State $F' \gets$ công thức thu được khi đơn giản hóa $F$ theo $x=b$
+            \State $R \gets$ \Call{DPLL}{$F',A'$}
+            \If{$R\neq\bot$}
+                \State \Return $R$
+            \EndIf
+        \EndFor
+        \State \Return $\bot$
+    \end{algorithmic}
+\end{algorithm}
+
+Hàm \texttt{solve} nhận tham số tùy chọn \texttt{stats} để ghi
+thống kê trong một đối tượng \texttt{DPLLStats}. Ba bộ đếm được
+khởi tạo bằng 0 và được cập nhật trong quá trình tìm kiếm.
+
+\begin{itemize}
+    \item \texttt{decisions} tăng một lần trước mỗi lần thử một
+    giá trị tại bước phân nhánh. Nếu thử cả hai giá trị của cùng
+    một biến, bộ đếm tăng hai lần.
+    \item \texttt{propagations} tăng một lần mỗi khi bộ giải gán
+    giá trị cho một literal do mệnh đề đơn vị bắt buộc.
+    \item \texttt{backtracks} tăng một lần mỗi khi lời gọi đệ quy
+    của một nhánh đã thử trả về vô nghiệm, kể cả nhánh thử cuối cùng.
+    \item \texttt{runtime\_ms} là thời gian tìm kiếm tính bằng
+    mili giây. Bộ giải dùng \texttt{perf\_counter} để đo từ ngay
+    trước đến ngay sau lời gọi tìm kiếm đệ quy. Phép đo được ghi
+    cho cả kết quả SAT và UNSAT, trước bước điền giá trị mặc định
+    cho các biến chưa được gán.
+\end{itemize}
+Xét công thức
+\[
+F=(\neg x_1 \lor x_2)
+  \land(\neg x_1 \lor \neg x_2)
+  \land(x_1 \lor x_3).
+\]
+Ban đầu, $F$ chưa có mệnh đề đơn vị nên bộ giải chọn $x_1$. Khi thử
+$x_1=\mathrm{True}$, hai mệnh đề đầu lần lượt rút gọn thành $x_2$ và
+$\neg x_2$. Hai yêu cầu này mâu thuẫn, do đó bộ giải quay lui và thử
+$x_1=\mathrm{False}$. Lúc này, hai mệnh đề đầu đã được thỏa, còn mệnh
+đề cuối rút gọn thành $x_3$. Lan truyền đơn vị gán
+$x_3=\mathrm{True}$ và công thức không còn mệnh đề nào. Vì $x_2$
+chưa cần được gán, hàm \texttt{solve} điền giá trị \texttt{False}
+để trả về phép gán đầy đủ
+$(x_1,x_2,x_3)=(\mathrm{False},\mathrm{False},\mathrm{True})$.
+
+Lan truyền đơn vị bảo toàn các nghiệm vì mỗi giá trị được gán ở
+bước này đều do một mệnh đề bắt buộc. Khi phải phân nhánh, hai giá trị
+của biến được chọn bao phủ mọi khả năng của biến đó. Vì vậy, nếu cả
+hai nhánh đều thất bại thì công thức tại nút hiện tại vô nghiệm.
+Với $n$ biến, kể cả biến phụ do bộ mã hóa sinh ra, cây tìm kiếm có
+thể có $O(2^n)$ nút trong trường hợp xấu nhất. Tại mỗi nút, cài đặt
+còn phải quét các mệnh đề và tạo công thức rút gọn cho từng phép gán.
+Lan truyền đơn vị giúp giảm số lần phân nhánh bằng cách xác định trước
+những giá trị đã bị ràng buộc ép buộc.
+
+Trong Griductive Solver, lớp \texttt{DPLLChecker} xây dựng cơ sở tri
+thức $KB$ từ các manh mối đã mở và các nhận định đã được chứng minh.
+Để xét một ô, hệ thống lần lượt kiểm tra $KB\land x$ và
+$KB\land\neg x$, trong đó $x$ biểu diễn việc ô đó có tội. Chẳng hạn,
+nếu $KB\land x$ vô nghiệm và $KB\land\neg x$ thỏa được, mọi nghiệm
+phù hợp với thông tin công khai đều xác định ô đó vô tội. Kết quả
+này là căn cứ để agent đưa ra gợi ý hoặc để engine chấp nhận nhận
+định của người chơi.
