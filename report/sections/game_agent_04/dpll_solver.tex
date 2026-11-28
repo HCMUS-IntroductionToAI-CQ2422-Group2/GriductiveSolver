@@ -46,6 +46,24 @@ Thuật toán~\ref{alg:dpll-search} mô tả hàm tìm kiếm đệ quy.
     \end{algorithmic}
 \end{algorithm}
 
+Hàm \texttt{solve} nhận tham số tùy chọn \texttt{stats} để ghi
+thống kê trong một đối tượng \texttt{DPLLStats}. Ba bộ đếm được
+khởi tạo bằng 0 và được cập nhật trong quá trình tìm kiếm.
+
+\begin{itemize}
+    \item \texttt{decisions} tăng một lần trước mỗi lần thử một
+    giá trị tại bước phân nhánh. Nếu thử cả hai giá trị của cùng
+    một biến, bộ đếm tăng hai lần.
+    \item \texttt{propagations} tăng một lần mỗi khi bộ giải gán
+    giá trị cho một literal do mệnh đề đơn vị bắt buộc.
+    \item \texttt{backtracks} tăng một lần mỗi khi lời gọi đệ quy
+    của một nhánh đã thử trả về vô nghiệm, kể cả nhánh thử cuối cùng.
+    \item \texttt{runtime\_ms} là thời gian tìm kiếm tính bằng
+    mili giây. Bộ giải dùng \texttt{perf\_counter} để đo từ ngay
+    trước đến ngay sau lời gọi tìm kiếm đệ quy. Phép đo được ghi
+    cho cả kết quả SAT và UNSAT, trước bước điền giá trị mặc định
+    cho các biến chưa được gán.
+\end{itemize}
 Xét công thức
 \[
 F=(\neg x_1 \lor x_2)
