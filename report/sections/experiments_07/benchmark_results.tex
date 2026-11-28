@@ -1,2 +1,34 @@
 \subsection{Kết quả và phân tích}
+<<<<<<< Updated upstream
 % Note: Trình bày bảng hoặc biểu đồ trên 6 map với đơn vị và thống kê qua các lần lặp; so sánh baseline nếu có. Nhận xét ảnh hưởng của kích thước map, loại clue, số clause và truy vấn; giải thích số liệu bất thường, dẫn dữ liệu gốc ở phụ lục.
+=======
+% Bảng thống kê
+Chi tiết kết quả thực nghiệm trên 6 bản đồ qua 3 lần lặp (lấy giá trị trung vị) được tổng hợp tại Bảng \ref{tab:benchmark}. Dữ liệu log thô (raw data) của từng lượt chạy được dẫn và trình bày chi tiết tại Phụ lục \ref{sec:detailed_results}.
+
+\begin{table}[h]
+    \centering
+    \caption{Tổng hợp kết quả đo lường DPLL Solver trên 6 bản đồ Griductive}
+    \label{tab:benchmark}
+    \resizebox{\textwidth}{!}{
+    \begin{tabular}{|l|c|c|c|c|c|c|c|c|}
+        \hline
+        \textbf{Bản đồ} & \textbf{Kích thước} & \textbf{Biến (Chính/Phụ)} & \textbf{Clauses (Đầu/Cuối)} & \textbf{Steps/Waves} & \textbf{SAT Calls} & \textbf{Dec / Prop / Back} & \textbf{Thời gian (ms)} & \textbf{Trạng thái} \\ \hline
+        Market & $3\times3$ & 9 / 3 & 3 / 50 & 8 / 3 & 45 & 0 / 327 / 0 & 1.3 & \textbf{PASS} \\ \hline
+        Gallery & $3\times3$ & 9 / 2 & 3 / 45 & 8 / 4 & 49 & 11 / 312 / 0 & 1.0 & \textbf{PASS} \\ \hline
+        Harbor & $4\times4$ & 16 / 2 & 3 / 333 & 15 / 4 & 84 & 64 / 858 / 0 & 15.0 & \textbf{PASS} \\ \hline
+        Theatre & $4\times4$ & 16 / 9 & 5 / 261 & 15 / 6 & 106 & 13 / 1447 / 0 & 14.8 & \textbf{PASS} \\ \hline
+        Museum & $5\times5$ & 25 / 0 & 4 / 1869 & 24 / 5 & 131 & 94 / 1921 / 8 & 293.8 & \textbf{PASS} \\ \hline
+        Observatory & $5\times5$ & 25 / 56 & 134 / 2041 & 24 / 8 & 155 & 190 / 9285 / 41 & 766.9 & \textbf{PASS} \\ \hline
+    \end{tabular}
+    }
+\end{table}
+
+\textbf{Nhận xét và phân tích chuyên sâu:}
+\begin{itemize}
+    \item \textbf{Ảnh hưởng của kích thước bản đồ và loại Clue:} Sự phức tạp bùng nổ rõ rệt ở các bản đồ $5\times5$. Đặc biệt, mã nguồn hiện tại ghi nhận bản đồ \textit{Observatory} sinh ra lượng clause lớn nhất toàn hệ thống (2041 clauses), vượt qua cả \textit{Museum} (1869 clauses). 
+    
+    \item \textbf{Phân tích biến phụ (Auxiliary Variables):} \textit{Museum} là bản đồ duy nhất ở độ khó cao không cần dùng đến biến phụ nào (0 Auxiliary) do chỉ sử dụng các phép đếm tổ hợp thuần túy. Ngược lại, \textit{Observatory} đòi hỏi tới 56 biến phụ để mã hóa hai ràng buộc \texttt{ConnectedConstraint} phức tạp trên hàng 5 ô cùng hàng loạt manh mối Parity.
+    
+    \item \textbf{Tương quan giữa truy vấn SAT và thao tác DPLL:} Với các bản đồ nhỏ, DPLL hoạt động cực kỳ trơn tru (0 backtracks ở map $3\times3$ và $4\times4$). Khi đối mặt với Observatory, hệ thống phải thực hiện 155 lần gọi SAT, dẫn đến 190 phân nhánh (Decisions) và 41 lần quay lui (Backtracks) để xử lý xung đột sâu, nhưng vẫn hoàn tất toàn bộ tiến trình trong vỏn vẹn $\approx 766.9$ ms (trung vị).
+\end{itemize}
+>>>>>>> Stashed changes

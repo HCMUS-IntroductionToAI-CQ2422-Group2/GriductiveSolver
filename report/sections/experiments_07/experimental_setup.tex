@@ -1,2 +1,21 @@
 \subsection{Thiết lập thực nghiệm}
+<<<<<<< Updated upstream
 % Note: Nêu mục tiêu đo; tóm tắt môi trường, phiên bản mã nguồn, 6 map, số lần lặp và phạm vi đo. Định nghĩa các chỉ số thực tế sử dụng như thời gian encode/SAT/giải toàn map, số biến/clause và số truy vấn; ghi baseline và điều kiện so sánh nếu có.
+=======
+
+\textbf{1. Mục tiêu và phạm vi đo lường:}
+Thực nghiệm nhằm đánh giá tính đúng đắn, hiệu năng thực thi và khả năng mở rộng của mô hình mã hóa CNF cùng bộ giải DPLL tự cài đặt. Phạm vi đo lường bao trùm toàn bộ vòng lặp suy luận của Deductive Logic Agent cho đến khi giải mã hoàn tất toàn bộ các ô trên bản đồ.
+
+\textbf{2. Môi trường và cấu hình hệ thống:}
+Toàn bộ quá trình đánh giá được thực thi thống nhất trên cấu hình máy Apple M5, môi trường Python 3.14.7. Ngưỡng thời gian chờ (timeout) cho mỗi bản đồ được đặt ở mức 30 giây.
+
+\textbf{3. Dữ liệu kiểm thử và điều kiện so sánh (Baseline):}
+Tập dữ liệu kiểm thử bao gồm 6 bản đồ Griductive chuẩn hóa từ $3\times3$ đến $5\times5$. Để đảm bảo độ tin cậy của số liệu và loại bỏ nhiễu hệ thống, mỗi bản đồ được thực thi lặp lại 3 lần độc lập. Các chỉ số thời gian được ghi nhận là giá trị trung vị (median) của tập mẫu này nhằm đồng bộ dữ liệu với Mục 8.1 và Phụ lục A.3.
+
+\textbf{4. Định nghĩa các chỉ số đánh giá:}
+\begin{itemize}
+    \item \textbf{Thời gian (Runtime):} Phân rã thành \textit{Thời gian Encode}, \textit{Thời gian SAT}, và \textit{Thời gian toàn hệ thống}. Báo cáo chính tập trung vào tổng thời gian xử lý trung vị.
+    \item \textbf{Kích thước Knowledge Base:} Ghi nhận số lượng \textit{Biến chính/phụ} và tổng số \textit{Clause} ở trạng thái ban đầu và lúc đạt đỉnh.
+    \item \textbf{Số truy vấn và thao tác DPLL:} Ghi nhận \textit{Số truy vấn SAT (SAT calls)} tổng cộng. Đo lường thao tác nội tại của bộ giải bao gồm: phân nhánh (\textit{decisions}), lan truyền đơn vị (\textit{propagations}), và quay lui (\textit{backtracks}).
+\end{itemize}
+>>>>>>> Stashed changes
