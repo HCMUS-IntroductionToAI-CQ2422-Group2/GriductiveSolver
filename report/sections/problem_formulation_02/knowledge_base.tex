@@ -34,9 +34,23 @@ chứa lời khai chưa lật; đây là ranh giới duy nhất giữa thông ti
 thông tin ẩn.
 
 \paragraph{Tri thức công khai và tri thức đầy đủ.}
-Ngoài $\mathit{KB}_t$, hệ thống dùng tri thức đầy đủ
-$\mathit{KB}_{\mathrm{full}} = \bigwedge_{\gamma \in \mathcal{K}} \phi_\gamma$,
-gồm mọi lời khai kể cả lời khai chưa lật. $\mathit{KB}_{\mathrm{full}}$ chỉ xuất
-hiện trong hàm \texttt{validate\_puzzle} khi kiểm chứng thiết kế bản đồ, để
-xác nhận $\sigma^\star$ là mô hình duy nhất của nó. Trong lúc chơi, cả Game
-Engine lẫn tác nhân chỉ truy vấn $\mathit{KB}_t$.
+Ngoài $\mathit{KB}_t$, hệ thống dùng tri thức đầy đủ, gồm mọi lời khai kể cả
+lời khai chưa lật cùng với các phán quyết ban đầu:
+\begin{equation}
+  \mathit{KB}_{\mathrm{full}} \;=\;
+  \bigwedge_{\gamma \in \mathcal{K}} \phi_\gamma
+  \;\land\;
+  \bigwedge_{\langle i, s\rangle \in \mathcal{P}_0} \phi_{\mathrm{Fact}(i,s)} .
+  \label{eq:kb_full_def}
+\end{equation}
+Công thức này có cùng dạng với \eqref{eq:kb}, chỉ khác ở chỗ $\mathcal{R}_t$
+được thay bằng toàn bộ $\mathcal{K}$ và tập phán quyết được cố định là
+$\mathcal{P}_0$; nó chính là $\mathit{KB}_{\mathrm{full}}(\mathcal{P}_0)$ trong
+\eqref{eq:kb_full} ở Mục~\ref{sec:uniqueness_checking}. Hàm
+\texttt{\_check\_unique\_solution} trong \texttt{validation.py} dựng đúng tri
+thức này: một \texttt{PublicState} có \texttt{revealed\_clues} là toàn bộ lời
+khai và \texttt{proved\_statuses} là \texttt{initial\_verdicts}.
+$\mathit{KB}_{\mathrm{full}}$ chỉ xuất hiện trong hàm \texttt{validate\_puzzle}
+khi kiểm chứng thiết kế bản đồ, để xác nhận $\sigma^\star$ là mô hình duy nhất
+của nó trên các biến ô. Trong lúc chơi, cả Game Engine lẫn tác nhân chỉ truy
+vấn $\mathit{KB}_t$.

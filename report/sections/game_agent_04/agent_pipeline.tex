@@ -1,3 +1,110 @@
 \subsection{Luồng xử lý từ Public State đến verdict}
-% Note: Minh họa luồng Public State, tạo KB/CNF, truy vấn SAT và chọn verdict; nêu đầu vào/đầu ra từng bước.
+\label{sec:agent_pipeline}
+\begin{sloppypar}
 
+Tác nhân suy luận của dự án được tách thành ba tầng độc lập.
+\texttt{DeductiveAgent} quyết định \emph{hỏi gì} và \emph{nộp gì};
+\texttt{DPLLChecker} dựng cơ sở tri thức và trả lời câu hỏi thỏa được hay
+không; \texttt{CNFEncoder} cùng hàm \texttt{solve} của bộ giải DPLL đảm nhận
+phần tính toán logic. Ba tầng chỉ giao tiếp qua giao diện
+\texttt{ConstraintChecker}, gồm đúng một phương thức
+\begin{center}
+  \texttt{has\_solution(public\_state, assumption=None) -> bool},
+\end{center}
+trả về \texttt{True} khi $\mathit{KB}_t$ (cùng giả thiết tạm thời nếu có) thỏa
+được. Tác nhân nhận bộ kiểm tra qua hàm khởi tạo, nên cùng một mã tác nhân có
+thể chạy trên \texttt{DPLLChecker} khi chơi thật hoặc trên
+\texttt{BruteForceChecker} khi đối chứng trong kiểm thử. Các mục sau dùng biến
+$x_i$ như ở Mục~\ref{sec:prop_vars}; literal $x_i$ ứng với ký hiệu $C_i$ (ô $i$
+là tội phạm) của đề bài và của Mục~4.2.
+
+\paragraph{Năm bước của một lượt suy luận.}
+Mỗi lượt bắt đầu từ một ảnh chụp \texttt{PublicState} và kết thúc bằng một
+phán quyết được Game Engine chấp nhận, hoặc bằng kết luận rằng không còn phán
+quyết nào chứng minh được. Bảng~\ref{tab:agent_pipeline} nêu đầu vào và đầu
+ra của từng bước.
+
+\begin{enumerate}
+  \item \textbf{Lấy thông tin công khai.} Tác nhân gọi
+    \texttt{GameEngine.get\_public\_state()} và nhận ảnh chụp chỉ đọc gồm bàn
+    chơi, tập lời khai đã lật $\mathcal{R}_t$ và tập phán quyết đã chứng minh
+    $\mathcal{P}_t$. Ảnh chụp không chứa $\sigma^\star$ hay lời khai chưa lật
+    (Mục~\ref{sec:knowledge_base}), nên mọi bước phía sau chỉ có thể dùng
+    thông tin công khai.
+  \item \textbf{Xác định ô cần xét.} Tác nhân duyệt bàn chơi theo thứ tự hàng
+    và lấy tập ô chưa chứng minh
+    $U_t = \mathcal{C} \setminus \{\, i : \langle i, s\rangle \in \mathcal{P}_t \,\}$,
+    giữ thứ tự định danh tăng dần. Thứ tự cố định làm cho toàn bộ quá trình
+    suy luận tất định: chạy lại cùng một bản đồ luôn cho cùng một trace.
+  \item \textbf{Dựng $\mathit{KB}_t$ dưới dạng CNF.} Mỗi lần
+    \texttt{has\_solution} được gọi, \texttt{DPLLChecker} tạo một
+    \texttt{CNFEncoder} mới trên bàn chơi, mã hóa lần lượt ràng buộc của mọi lời
+    khai trong $\mathcal{R}_t$, thêm một mệnh đề đơn vị cho mỗi phán quyết trong
+    $\mathcal{P}_t$ theo \eqref{eq:kb}, rồi thêm mệnh đề đơn vị của giả thiết
+    $x_i = s$ nếu có. Số biến truyền cho bộ giải là
+    \texttt{next\_variable}$-1$, gồm $|\mathcal{C}|$ biến ô và các biến phụ
+    trợ vừa được cấp phát. Vì công thức được dựng lại từ đầu, giả thiết của
+    truy vấn trước không bao giờ rò sang truy vấn sau.
+  \item \textbf{Truy vấn SAT.} Hàm \texttt{solve(cnf, n)} trả về một phép gán
+    thỏa mãn hoặc \texttt{None} (Mục~4.3); \texttt{DPLLChecker} rút gọn kết quả
+    thành một giá trị Boolean. Với mỗi ô $i \in U_t$, tác nhân hỏi hai câu
+    $\mathrm{SAT}(\mathit{KB}_t \land x_i)$ và
+    $\mathrm{SAT}(\mathit{KB}_t \land \neg x_i)$, và ghi mỗi câu hỏi vào một
+    bản ghi \texttt{Query(assumption, satisfiable)}.
+  \item \textbf{Phân loại và chọn verdict.} Cặp câu trả lời được phân loại
+    thành \texttt{CRIMINAL}, \texttt{INNOCENT} hoặc \texttt{UNKNOWN} theo
+    Mục~\ref{sec:entailment_classification}. Ô đầu tiên (theo thứ tự định danh)
+    có nhãn khác \texttt{UNKNOWN} cho ra phán quyết $\langle i, s\rangle$, được
+    gửi tới \texttt{GameEngine.submit\_verdict}. Engine tự kiểm tra lại bằng hai
+    truy vấn của chính nó, lật lời khai của ô $i$ và trả về ảnh chụp mới
+    (Mục~\ref{sec:deductive_agent}).
+\end{enumerate}
+
+\begin{table}[htbp]
+  \centering\small
+  \caption{Đầu vào và đầu ra của từng bước trong một lượt suy luận}
+  \label{tab:agent_pipeline}
+  \begin{tabularx}{\textwidth}{c>{\raggedright\arraybackslash}p{3.5cm}%
+      >{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X}
+    \toprule
+    \textbf{Bước} & \textbf{Thành phần} & \textbf{Đầu vào} & \textbf{Đầu ra} \\
+    \midrule
+    1 & \texttt{GameEngine} & Trạng thái nội bộ \texttt{GameState}
+      & \texttt{PublicState} chỉ đọc: bàn chơi, $\mathcal{R}_t$, $\mathcal{P}_t$ \\
+    2 & \texttt{DeductiveAgent} & \texttt{PublicState}
+      & Danh sách ô chưa chứng minh $U_t$, theo thứ tự định danh \\
+    3 & \texttt{DPLLChecker}, \texttt{CNFEncoder}
+      & \texttt{PublicState}, giả thiết \texttt{Verdict} hoặc \texttt{None}
+      & CNF dạng DIMACS của $\mathit{KB}_t \land (x_i = s)$ và số biến $n$ \\
+    4 & \texttt{solve} (DPLL) & CNF, $n$
+      & Phép gán thỏa mãn hoặc \texttt{None}, rút gọn thành \texttt{bool} \\
+    5 & \texttt{DeductiveAgent} & Hai giá trị \texttt{bool} cho mỗi ô
+      & Nhãn của ô; \texttt{Move} gồm trạng thái, phán quyết và danh sách
+        \texttt{Query} \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\paragraph{Ba điểm vào của tác nhân.}
+Cùng một đường ống trên được dùng qua ba phương thức.
+\texttt{next\_move(state)} chạy năm bước cho tới khi tìm được ô đầu tiên chứng
+minh được, rồi dừng ngay. API dùng phương thức này cho chức năng gợi ý
+(\texttt{GET /api/game/hint}), nên gợi ý không làm thay đổi ván chơi.
+\texttt{classify\_all(state)} cũng chạy các bước đó nhưng không dừng sớm, và
+trả về nhãn của \emph{mọi} ô chưa chứng minh; nó cho thấy toàn bộ những gì
+$\mathit{KB}_t$ suy ra được tại một thời điểm. Cuối cùng,
+\texttt{solve(engine)} lặp \texttt{next\_move} và nộp phán quyết cho tới khi
+ván kết thúc. API dùng phương thức này cho chức năng tự giải
+(\texttt{POST /api/game/auto-solve}).
+
+\paragraph{Tác nhân không được tin tưởng mặc định.}
+Đường ống có hai lớp kiểm tra độc lập. Tác nhân chỉ nộp phán quyết mà nó đã tự
+chứng minh, nhưng Game Engine không dựa vào điều đó: \texttt{submit\_verdict}
+chạy lại hai truy vấn trên cùng $\mathit{KB}_t$ và chỉ ghi nhận khi kết quả là
+\texttt{ACCEPTED} (Bảng~\ref{tab:submit_outcome}). Cách bố trí này tốn thêm hai
+lời gọi bộ giải cho mỗi phán quyết. Trên bản đồ Khu chợ chẳng hạn, tác nhân gọi
+bộ giải $29$ lần và Game Engine gọi thêm $16$ lần, tổng cộng $45$ lần
+(Bảng~\ref{tab:benchmark_raw}). Đổi lại, một lỗi trong tác nhân không thể đưa
+ván chơi vào trạng thái sai: phán quyết không chứng minh được sẽ bị từ chối như
+khi người chơi nộp.
+\end{sloppypar}
