@@ -1,3 +1,54 @@
 \subsection{Kế hoạch và các mốc thực hiện}
-% Note: Trình bày các giai đoạn, thời hạn, phụ thuộc công việc và tiến độ thực tế của nhóm.
+\label{subsec:project_plan}
+\begin{sloppypar}
 
+\paragraph{Các giai đoạn triển khai.}
+Lộ trình thực hiện đồ án được chia thành bốn giai đoạn chính:
+\begin{enumerate}
+    \item \textbf{Giai đoạn 1 - Khởi tạo và chốt kiến trúc nền tảng (05/11/2026):}
+    Phân tích đặc tả Griductive, thống nhất kiến trúc tách biệt \textit{Game Engine} với \textit{Logic Agent} thông qua giao diện \texttt{ConstraintChecker}, khởi tạo kho mã nguồn, định nghĩa bộ khung các module cốt lõi và phân công hạn mốc đợt đầu.
+
+    \item \textbf{Giai đoạn 2 - Xây dựng nền tảng trò chơi, API và giao diện phiên bản đầu (06/11--09/11/2026):}
+    Hoàn thiện các đối tượng bàn chơi (\texttt{objects.py}, \texttt{board\_utils.py}), biểu diễn bảy loại ràng buộc (\texttt{constraints.py}), động cơ trò chơi kèm bộ kiểm tra quay lui đối chứng (\texttt{GameState}, \texttt{GameEngine}, \texttt{BruteForceChecker}, \texttt{validation.py}), dịch vụ FastAPI (\nolinkurl{BackEnd/APIs/}) và giao diện web phiên bản đầu (\nolinkurl{FrontEnd/}) cùng bộ ảnh đại diện, thao tác tương tác và hướng dẫn chạy.
+
+    \item \textbf{Giai đoạn 3 - Thiết kế bản đồ, bộ mã hóa CNF, DPLL, tác tử và nâng cấp giao diện (10/11--15/11/2026):}
+    Thiết kế và kiểm chứng bộ sáu bản đồ cỡ $3\times3$, $4\times4$ và $5\times5$; xây dựng tuần tự \texttt{CNFEncoder}, \texttt{DPLL\_Solver}, \texttt{DPLLChecker} và \texttt{DeductiveAgent} cùng hợp đồng dữ liệu API (\nolinkurl{FrontEnd/API_CONTRACT.md}, \nolinkurl{openapi.json}); chuyển đổi bộ kiểm tra của API sang DPLL; đồng thời tái cấu trúc và hoàn thiện giao diện web phiên bản chính thức.
+
+    \item \textbf{Giai đoạn 4 - Thực nghiệm, hiệu chỉnh theo đặc tả và hoàn thiện báo cáo (16/11--27/11/2026):}
+    Cài đặt công cụ đo hiệu năng (\nolinkurl{BackEnd/LogicAgent/benchmark.py}), rà soát các yêu cầu biên của đề bài (bổ sung kết quả \texttt{INCONSISTENT}, hàm phân loại ô trong tác tử và quy tắc mỗi nhân vật có đúng một lời khai trên cả sáu bản đồ), chạy lại toàn bộ bộ kiểm thử tự động và tổng hợp, đối chiếu chéo báo cáo trước khi nộp.
+\end{enumerate}
+
+\paragraph{Mốc thời hạn và đánh giá tiến độ thực tế.}
+Bảng~\ref{tab:project_plan} đối chiếu các mốc thời hạn nhóm đặt ra với thời điểm hoàn thành thực tế trên Git. Hầu hết các thành phần chính đều xong trong hai tuần đầu (05/11--15/11/2026), trong đó bộ khung dữ liệu, \texttt{CNFEncoder}, \texttt{DeductiveAgent} và lõi \texttt{DPLL\_Solver} đều đạt hoặc sớm hơn hạn. Riêng ba đầu việc cần thêm thời gian để khớp giữa các phần: nhánh DPLL hợp nhất vào API vào tối 14/11 sau khi đồng bộ giao diện với \texttt{CNFEncoder}; phần giao diện dời sang ngày 15/11 vì nhóm tách lại cấu trúc FrontEnd và thêm chức năng tạm dừng ván; còn phần benchmark hoàn tất vào ngày 19--21/11 khi chuỗi suy luận đã chạy ổn định.
+
+Trong tuần cuối (20/11--27/11/2026), khi rà soát lại hệ thống theo từng yêu cầu của đề bài, nhóm phát hiện và bổ sung thêm một số chi tiết còn thiếu. Cụ thể, \texttt{GameEngine} và \texttt{DeductiveAgent} được cập nhật thêm kết quả \texttt{INCONSISTENT} cùng hàm phân loại các ô chưa xác định (PR~\#22), sáu bản đồ được bổ sung đủ một lời khai cho mỗi nhân vật kèm bước kiểm tra tương ứng (PR~\#23), sau đó các mục báo cáo được kiểm tra chéo với mã nguồn trước khi tổng hợp bản nộp.
+
+\begin{table}[!t]
+    \centering\footnotesize
+    \caption{Kế hoạch các mốc thực hiện, phân công và đối chiếu tiến độ thực tế theo lịch sử Git (tháng 11/2026).}
+    \label{tab:project_plan}
+    \setlength{\tabcolsep}{4pt}
+    \renewcommand{\arraystretch}{1.2}
+    \begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{4.0cm}>{\raggedright\arraybackslash}p{2.05cm}>{\raggedright\arraybackslash}p{1.75cm}>{\raggedright\arraybackslash}p{2.3cm}>{\raggedright\arraybackslash}X}
+        \toprule
+        \textbf{Hạng mục / Mốc} & \textbf{Phụ trách} & \textbf{Hạn dự kiến} & \textbf{Thực tế (Git)} & \textbf{Đánh giá tiến độ} \\
+        \midrule
+        Khởi tạo repo, bộ khung và bảng phân công đầu & Hoàng Minh & 05/11 & 05/11 & Đúng hạn; chốt cấu trúc toàn dự án. \\
+        Game Object \& truy vấn bàn (\texttt{objects}, \texttt{board\_utils}) & Hoàng Minh & 07/11 & 07/11 (PR~\#1) & Đúng hạn; mở khóa các module phụ thuộc. \\
+        Biểu diễn ràng buộc (\texttt{constraints.py}) & Nhật Minh & Trưa 08/11 & 08--09/11 (PR~\#4) & Xong bản đầu 08/11; chỉnh sửa tiếp 09/11. \\
+        Game Engine, \texttt{BruteForceChecker}, \texttt{validation} & Xuân Lộc & Trưa 08/11 & 08--09/11 (PR~\#2, \#8) & Hoàn tất lõi 08/11; gộp sửa xung đột 09/11. \\
+        API FastAPI \& nối FrontEnd (\nolinkurl{BackEnd/APIs/}) & Ngọc Hải & Trưa 08/11 & 08--09/11 (PR~\#3, \#7) & Xong API 08/11; hoàn tất nối FE 09/11. \\
+        Giao diện v1, bộ ảnh đại diện, tương tác \& README & Thành Bảo & 08/11 & 07--09/11 (PR~\#5, \#9--\#13) & Bản v1 sớm 07/11; mở rộng tính năng 09/11. \\
+        Xây dựng 6 bản đồ và kiểm tra tính giải được (gồm \textit{Observatory} $5\times5$) & Cả nhóm & 21h00 12/11 & 10--12/11 (PR~\#14) & Đúng hạn (tạo 6 map: Hoàng Minh; kiểm \textit{Observatory}: Thành Bảo); bổ sung đủ 1 lời khai/ô ở PR~\#23 (22/11). \\
+        Bộ mã hóa CNF (\texttt{CNFEncoder}) & Hoàng Minh & 21h00 12/11 & 12/11 (PR~\#16, 21h17) & Cơ bản đúng hạn; hoàn tất đủ 7 dạng ràng buộc. \\
+        Bộ giải DPLL SAT (\texttt{DPLL\_Solver}, \texttt{DPLLChecker}) & Ngọc Hải & 21h00 13/11 & 12--14/11 (PR~\#17, \#18) & Xong lõi DPLL 12/11; hợp nhất \& nối API 14/11. \\
+        Tác tử suy luận (\texttt{DeductiveAgent}) \& hợp đồng API & Thành Bảo & 21h00 14/11 & 12/11 (PR~\#15) & Sớm 2 ngày; bổ sung \texttt{INCONSISTENT} ở PR~\#22 (21/11). \\
+        Hoàn thiện UI (tách module CSS/JS, tạm dừng ván) & Xuân Lộc & 21h00 14/11 & 15/11 (PR~\#19) & Chậm gần 1 ngày do mở rộng kế hoạch nâng cấp UI. \\
+        Kiểm thử hệ thống \& Benchmark (\texttt{benchmark.py}) & Nhật Minh & 23h00 15/11 & 19--21/11 (PR~\#21) & Chậm hơn mốc đầu do phụ thuộc chốt chuỗi DPLL--Agent. \\
+        Khung báo cáo, viết nội dung và rà soát tổng thể & Cả nhóm & 20--27/11 & 20--27/11 (PR~\#20, \#22--\#25) & Đối chiếu chéo mã nguồn và đề bài trên nhánh \texttt{check-report}. \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
+\clearpage
+
+\end{sloppypar}
